@@ -3,12 +3,12 @@
 REPO_TOP="$(git rev-parse --show-toplevel)"
 
 # Cross compile the tests for the FPGA environment.
-docker run --rm -t \
-  -v $HOME/.cargo/registry/cache:/root/.cargo/registry/cache \
-  -v $HOME/.cargo/registry/git:/root/.cargo/registry/git  \
+docker run --rm \
+  -v "${HOME}/.cargo/registry/cache:/root/.cargo/registry/cache" \
+  -v "${HOME}/.cargo/git:/root/.cargo/git"  \
   -v "${PWD}":/work-dir \
   -w /work-dir \
-  caliptra-fpga:latest \
+  ghcr.io/chipsalliance/caliptra-build-image:latest \
   /bin/bash \
   -c ". util/fpga/cross-compiling/build-fpga-tests.sh"
 

@@ -15,9 +15,9 @@ To use this tool flow, we assume you have the following pre-configured.
 
 We use a Docker container to perform cross-compilations of FPGA (Rust) test harness since the FPGA board is running Ubuntu22.04 and may have different system dependency (e.g., glibc) versions than your host workstation.
 
-To build the Docker image run:
+To install the Docker image run:
 ```sh
-docker build -t caliptra-fpga-builder:latest util/fpga/cross-compiling
+docker pull ghcr.io/chipsalliance/caliptra-build-image:latest
 ```
 
 # Test Build and Deployment Flow
