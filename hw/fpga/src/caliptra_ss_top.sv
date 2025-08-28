@@ -42,7 +42,6 @@ module caliptra_ss_top
     ,parameter [4:0] SET_MCU_MBOX1_AXI_USER_INTEG   = { 1'b0,          1'b0,          1'b0,          1'b0,          1'b0}
     ,parameter [4:0][31:0] MCU_MBOX1_VALID_AXI_USER = {32'h4444_4444, 32'h3333_3333, 32'h2222_2222, 32'h1111_1111, 32'h0000_0000}
     ,parameter MCU_SRAM_SIZE_KB = 512
-    ,parameter bit LCC_SecVolatileRawUnlockEn = 1
 ) (
     // TODO: Hacking in this i3c clock
     input logic cptra_i3c_clk_i,
@@ -150,7 +149,7 @@ module caliptra_ss_top
 // Caliptra Memory Export Interface
 // Caliptra Core, ICCM and DCCM interface
     el2_mem_if.veer_sram_src           cptra_ss_cptra_core_el2_mem_export,
-    mldsa_mem_if.req                   mldsa_memory_export_req,
+    abr_mem_if.req                     abr_memory_export,
 
 // SRAM interface for mbox
 // Caliptra SS mailbox sram interface
@@ -223,6 +222,9 @@ module caliptra_ss_top
     input logic [63:0]  cptra_ss_strap_recovery_ifc_base_addr_i,
     input logic [63:0]  cptra_ss_strap_otp_fc_base_addr_i,
     input logic [63:0]  cptra_ss_strap_uds_seed_base_addr_i,
+    input logic [63:0]  cptra_ss_strap_ss_key_release_base_addr_i,
+    input logic [15:0]  cptra_ss_strap_ss_key_release_key_size_i,
+    input logic [63:0]  cptra_ss_strap_ss_external_staging_area_base_addr_i,
     input logic [31:0]  cptra_ss_strap_prod_debug_unlock_auth_pk_hash_reg_bank_offset_i,
     input logic [31:0]  cptra_ss_strap_num_of_prod_debug_unlock_auth_pk_hashes_i,
     input logic [31:0]  cptra_ss_strap_caliptra_dma_axi_user_i,
@@ -231,6 +233,7 @@ module caliptra_ss_top
     input logic [31:0]  cptra_ss_strap_generic_2_i,
     input logic [31:0]  cptra_ss_strap_generic_3_i,
     input logic         cptra_ss_debug_intent_i,            // Debug intent signal
+    input logic         cptra_ss_ocp_lock_en_i,
 
     output logic        cptra_ss_dbg_manuf_enable_o,
     output logic [63:0] cptra_ss_cptra_core_soc_prod_dbg_unlock_level_o,
@@ -238,6 +241,7 @@ module caliptra_ss_top
     input  lc_ctrl_pkg::lc_tx_t cptra_ss_lc_clk_byp_ack_i,
     output lc_ctrl_pkg::lc_tx_t cptra_ss_lc_clk_byp_req_o,
     input  logic cptra_ss_lc_ctrl_scan_rst_ni_i,
+    input logic cptra_ss_lc_sec_volatile_raw_unlock_en_i,
 
     input logic cptra_ss_lc_esclate_scrap_state0_i,   
     input logic cptra_ss_lc_esclate_scrap_state1_i,   
@@ -482,7 +486,7 @@ module caliptra_ss_top
         .m_axi_r_if(cptra_ss_cptra_core_m_axi_if_r_mgr),
 
         .el2_mem_export(cptra_ss_cptra_core_el2_mem_export),
-        .mldsa_memory_export(mldsa_memory_export_req),
+        .abr_memory_export(abr_memory_export),
 
         .ready_for_fuses(),             // -- unused in caliptra ss
         .ready_for_mb_processing(),     // -- unused in caliptra ss
@@ -525,6 +529,9 @@ module caliptra_ss_top
         .strap_ss_recovery_ifc_base_addr                        ( cptra_ss_strap_recovery_ifc_base_addr_i ),
         .strap_ss_otp_fc_base_addr                              ( cptra_ss_strap_otp_fc_base_addr_i ),
         .strap_ss_uds_seed_base_addr                            ( cptra_ss_strap_uds_seed_base_addr_i ),
+        .strap_ss_key_release_base_addr                         ( cptra_ss_strap_ss_key_release_base_addr_i),
+        .strap_ss_key_release_key_size                          ( cptra_ss_strap_ss_key_release_key_size_i),
+        .strap_ss_external_staging_area_base_addr               ( cptra_ss_strap_ss_external_staging_area_base_addr_i),
         .strap_ss_prod_debug_unlock_auth_pk_hash_reg_bank_offset( cptra_ss_strap_prod_debug_unlock_auth_pk_hash_reg_bank_offset_i ),
         .strap_ss_num_of_prod_debug_unlock_auth_pk_hashes       ( cptra_ss_strap_num_of_prod_debug_unlock_auth_pk_hashes_i ),
         .strap_ss_caliptra_dma_axi_user                         ( cptra_ss_strap_caliptra_dma_axi_user_i),
@@ -533,6 +540,7 @@ module caliptra_ss_top
         .strap_ss_strap_generic_2                               ( cptra_ss_strap_generic_2_i ),
         .strap_ss_strap_generic_3                               ( cptra_ss_strap_generic_3_i ),
 
+        .ss_ocp_lock_en                                         ( cptra_ss_ocp_lock_en_i ),
         .ss_debug_intent                                        ( cptra_ss_debug_intent_i ),
 
         // Subsystem mode debug outputs
@@ -1230,11 +1238,10 @@ module caliptra_ss_top
     assign lcc_to_mci_lc_done = pwrmgr_pkg::pwr_lc_rsp_t'(u_lc_ctrl_pwr_lc_o.lc_done);
     assign lcc_init_req.lc_init = mci_to_lcc_init_req; 
 
-    lc_ctrl  #(
-        .SecVolatileRawUnlockEn (LCC_SecVolatileRawUnlockEn)
-    ) u_lc_ctrl (
+    lc_ctrl u_lc_ctrl (
             .clk_i(cptra_ss_clk_i),
             .rst_ni(cptra_ss_rst_b_o),
+            .lc_sec_volatile_raw_unlock_en_i(cptra_ss_lc_sec_volatile_raw_unlock_en_i),
             .Allow_RMA_or_SCRAP_on_PPD(cptra_ss_lc_Allow_RMA_or_SCRAP_on_PPD_i),
             .axi_wr_req(cptra_ss_lc_axi_wr_req_i),
             .axi_wr_rsp(cptra_ss_lc_axi_wr_rsp_o),

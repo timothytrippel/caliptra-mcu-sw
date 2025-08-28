@@ -42,6 +42,7 @@ source adams-bridge-files.tcl
 
 # Add Caliptra headers and packages
 add_files [ glob $caliptrartlDir/src/*/rtl/*.svh ]
+add_files [ glob $caliptrartlDir/src/*/rtl/*/*.svh ]
 add_files [ glob $caliptrartlDir/src/*/rtl/*_pkg.sv ]
 # Add Caliptra sources
 add_files [ glob $caliptrartlDir/src/*/rtl/*.sv ]
@@ -105,6 +106,12 @@ file copy [ glob $caliptrartlDir/src/aes/rtl/aes_clp_wrapper.sv ] $outputDir/aes
 exec sed -i {1i `include \"kv_macros.svh\"\n`include \"caliptra_reg_field_defines.svh\"} $outputDir/aes_clp_wrapper.sv
 remove_files [ glob $caliptrartlDir/src/aes/rtl/aes_clp_wrapper.sv ]
 add_files $outputDir/aes_clp_wrapper.sv
+
+# TODO: Should the RTL be changed? Copy abr_ctrl.sv to apply workaround
+file copy [ glob $adbDir/src/abr_top/rtl/abr_ctrl.sv ] $outputDir/abr_ctrl.sv
+exec sed -i {1i `include \"kv_macros.svh\"\n`include \"abr_config_defines.svh\"} $outputDir/abr_ctrl.sv
+remove_files [ glob $adbDir/src/abr_top/rtl/abr_ctrl.sv ]
+add_files $outputDir/abr_ctrl.sv
 
 # Mark all Verilog sources as SystemVerilog because some of them have SystemVerilog syntax.
 set_property file_type SystemVerilog [get_files *.v]

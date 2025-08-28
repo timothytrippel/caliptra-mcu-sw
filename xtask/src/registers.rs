@@ -191,7 +191,8 @@ pub(crate) fn autogen(
 
     let addrmap = scope.lookup_typedef("soc").unwrap();
     let addrmap2 = scope.lookup_typedef("mcu").unwrap();
-    let mut scopes = vec![addrmap, addrmap2];
+    let addrmap3 = scope.lookup_typedef("caliptra_fpga_realtime_regs").unwrap();
+    let mut scopes = vec![addrmap, addrmap2, addrmap3];
     if !extra_addrmap.is_empty() {
         let addrmap3 = scope.lookup_typedef("extra").unwrap();
         scopes.push(addrmap3);
