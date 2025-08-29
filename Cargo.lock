@@ -3885,13 +3885,18 @@ version = "0.1.0"
 name = "tests-integration"
 version = "0.1.0"
 dependencies = [
+ "caliptra-hw-model",
  "chrono",
  "flash-image",
  "mcu-builder",
  "mcu-config",
  "mcu-config-emulator",
+ "mcu-config-fpga",
+ "mcu-hw-model",
+ "mcu-rom-common",
  "pldm-fw-pkg",
  "tempfile",
+ "uio",
  "uuid",
  "zerocopy",
 ]

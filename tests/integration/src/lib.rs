@@ -1,5 +1,8 @@
 // Licensed under the Apache-2.0 license
+
 mod test_firmware_update;
+#[cfg(feature = "fpga_realtime")]
+mod test_lc_transitions;
 mod test_soc_boot;
 #[cfg(test)]
 mod test {

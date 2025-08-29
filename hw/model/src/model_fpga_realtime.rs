@@ -135,7 +135,7 @@ impl McuHwModel for ModelFpgaRealtime {
             | LifecycleControllerState::Prod
             | LifecycleControllerState::ProdEnd => security_state_prod,
             LifecycleControllerState::Dev => security_state_manufacturing,
-            _ => security_state_unprovisioned,
+            LifecycleControllerState::TestUnlocked0 | _ => security_state_unprovisioned,
         };
 
         let cptra_init = CaliptraInitParams {
