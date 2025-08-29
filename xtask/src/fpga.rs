@@ -246,6 +246,8 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
 
             if let Some(target_host) = target_host {
                 rsync_file(target_host, "caliptra-test-binaries.tar.zst", false)?;
+                // TODO(ttrippel): remove this; for debug only.
+                rsync_file(target_host, "hw/fpga/openocd_ss_lcc.txt", false)?;
             }
         }
         Fpga::Bootstrap { target_host } => {
