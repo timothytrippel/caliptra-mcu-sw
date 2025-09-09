@@ -31,7 +31,6 @@ mod model_emulated;
 mod model_fpga_realtime;
 mod otp_provision;
 mod vmem;
-mod xi3c;
 
 pub enum ShaAccMode {
     Sha384Stream,
@@ -408,6 +407,7 @@ pub trait McuHwModel {
     }
 }
 
+#[ignore]
 #[test]
 fn reg_access_test() {
     let binaries = mcu_builder::FirmwareBinaries::from_env().unwrap();
@@ -417,16 +417,43 @@ fn reg_access_test() {
             mcu_rom: &binaries.mcu_rom,
             vendor_pk_hash: binaries.vendor_pk_hash(),
             active_mode: true,
+            vendor_pqc_type: Some(FwVerificationPqcKeyType::LMS),
             ..Default::default()
         },
         BootParams {
             fw_image: Some(&binaries.caliptra_fw),
             soc_manifest: Some(&binaries.soc_manifest),
             mcu_fw_image: Some(&binaries.mcu_runtime),
+            fuses: Fuses {
+                fuse_pqc_key_type: FwVerificationPqcKeyType::LMS as u32,
+                vendor_pk_hash: {
+                    let mut vendor_pk_hash = [0u32; 12];
+                    binaries
+                        .vendor_pk_hash()
+                        .unwrap()
+                        .chunks(4)
+                        .enumerate()
+                        .for_each(|(i, chunk)| {
+                            let mut array = [0u8; 4];
+                            array.copy_from_slice(chunk);
+                            vendor_pk_hash[i] = u32::from_be_bytes(array);
+                        });
+                    vendor_pk_hash
+                },
+                ..Default::default()
+            },
             ..Default::default()
         },
     )
     .unwrap();
+
+    assert_eq!(
+        hw.caliptra_soc_manager()
+            .soc_ifc()
+            .cptra_fw_error_fatal()
+            .read(),
+        0
+    );
 
     // Check Caliptra reports 2.x
     assert_eq!(

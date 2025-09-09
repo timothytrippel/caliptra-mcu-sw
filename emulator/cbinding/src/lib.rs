@@ -333,6 +333,9 @@ pub unsafe extern "C" fn emulator_init(
         otp_size: convert_optional_offset_size(config.otp_size),
         lc_offset: convert_optional_offset_size(config.lc_offset),
         lc_size: convert_optional_offset_size(config.lc_size),
+        fuse_soc_manifest_svn: None,
+        fuse_soc_manifest_max_svn: None,
+        fuse_vendor_hashes_prod_partition: None,
     };
 
     // Convert C callbacks to Rust callbacks if provided
