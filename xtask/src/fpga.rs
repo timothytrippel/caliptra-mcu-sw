@@ -326,6 +326,8 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             cmd.current_dir(&*PROJECT_ROOT).args([
                 "run",
                 "--rm",
+                "-e",
+                "\"TERM=xterm-256color\"",
                 &format!("-v{project_root}:/work-dir"),
                 "-w/work-dir",
                 &format!("-v{home}/.cargo/registry:/root/.cargo/registry"),
@@ -333,11 +335,14 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             ]);
 
             // Add optional path to the caliptra-sw directory
-            if let Some(caliptra_sw) = caliptra_sw {
+            let basename = if let Some(caliptra_sw) = caliptra_sw {
                 let basename = caliptra_sw.file_name().unwrap().to_str().unwrap();
                 let caliptra_sw = std::fs::canonicalize(&caliptra_sw)?;
                 cmd.arg(&format!("-v{}:/{basename}", caliptra_sw.display()));
-            }
+                basename
+            } else {
+                ""
+            };
 
             let config = Configuration::from_cmd(target_host.as_deref())?;
 
@@ -348,12 +353,13 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             // Assumes you are using `../caliptra-sw` as your crate path in Cargo.toml
             // TODO(clundin): Clean this up...
             let (features, work_dir) = match config {
-                Configuration::Subsystem => ("fpga_realtime", "/work-dir"),
+                Configuration::Subsystem => ("fpga_realtime", "/work-dir".to_string()),
                 Configuration::CoreOnSubsystem => {
                     if caliptra_sw.is_none() {
                         bail!("have to set `caliptra-sw` flag when using core-on-subsystem");
                     }
-                    ("fpga_subsystem,itrng", "/caliptra-sw")
+
+                    ("fpga_subsystem,itrng", format!("/{basename}"))
                 }
             };
 
@@ -413,9 +419,9 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             };
 
             let to = if *test_output {
-                "--success-output=immediate"
+                "--no-capture"
             } else {
-                ""
+                "--test-threads=1"
             };
 
             let (prelude, test_dir) = match config {
@@ -430,9 +436,8 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
                 sudo {prelude} \
                 cargo-nextest nextest run \
                 --workspace-remap=. --archive-file $HOME/caliptra-test-binaries.tar.zst \
-                --test-threads=1 --no-fail-fast --profile=nightly {} \
-                -E \"{}\")",
-                to, tf
+                {to} --no-fail-fast --profile=nightly \
+                -E \"{tf}\")"
             );
 
             // Run test suite.
@@ -507,6 +512,7 @@ pub(crate) fn fpga_run(args: crate::Commands) -> Result<()> {
             caliptra_rom,
             caliptra_fw: blank.to_vec(),
             soc_manifest: blank.to_vec(),
+            test_roms: vec![],
         }
     };
     let otp_memory = if otp_file.is_some() && otp_file.unwrap().exists() {
@@ -530,6 +536,7 @@ pub(crate) fn fpga_run(args: crate::Commands) -> Result<()> {
         bootfsm_break,
         lifecycle_controller_state,
         vendor_pk_hash: binaries.vendor_pk_hash(),
+        enable_mcu_uart_log: true,
         ..Default::default()
     })
     .unwrap();
@@ -564,7 +571,7 @@ pub(crate) fn fpga_run(args: crate::Commands) -> Result<()> {
         } else if recovery && !xi3c_configured && model.i3c_target_configured() {
             xi3c_configured = true;
             println!("I3C target configured");
-            model.configure_i3c_controller();
+            model.start_i3c_controller();
             println!("Starting recovery flow (BMC)");
             model.start_recovery_bmc();
         }
