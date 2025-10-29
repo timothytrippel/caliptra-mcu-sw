@@ -2796,6 +2796,7 @@ dependencies = [
  "bitfield",
  "bitflags 2.9.4",
  "caliptra-api",
+ "caliptra-drivers",
  "flash-image",
  "mcu-config",
  "mcu-error",
