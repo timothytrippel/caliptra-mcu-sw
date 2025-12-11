@@ -45,8 +45,8 @@ const MLDSA_FUSE_VALUE: u8 = 0;
 // values when setting in Caliptra
 const MLDSA_CALIPTRA_VALUE: u8 = 1;
 const LMS_CALIPTRA_VALUE: u8 = 3;
-const OTP_DAI_IDLE_BIT_OFFSET: u32 = 22;
-const OTP_DIRECT_ACCESS_CMD_REG_OFFSET: u32 = 0x60;
+const OTP_DAI_IDLE_BIT_OFFSET: u32 = 30;
+const OTP_DIRECT_ACCESS_CMD_REG_OFFSET: u32 = 0x80;
 
 pub const DEFAULT_UDS_SEED: [u32; 16] = [
     0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f, 0x10111213, 0x14151617, 0x18191a1b, 0x1c1d1e1f,
@@ -477,6 +477,43 @@ impl Soc {
 
         for (idx, &word) in DEFAULT_FIELD_ENTROPY.iter().enumerate() {
             self.registers.fuse_field_entropy[idx].set(word);
+        }
+
+        // We use non secret production fuses to have caliptra tests pass some initial fuse values
+        if cfg!(feature = "core_test") {
+            // UDS Seed from vendor_non_secret_prod_partition (first 64 bytes)
+            romtime::println!("[mcu-fuse-write] Writing UDS seed");
+            if size_of_val(&fuses.vendor_non_secret_prod_partition[0..64])
+                != size_of_val(&self.registers.fuse_uds_seed)
+            {
+                fatal_error(McuError::ROM_SOC_UDS_SEED_LEN_MISMATCH);
+            }
+            for i in 0..self.registers.fuse_uds_seed.len() {
+                let word = u32::from_le_bytes(
+                    fuses.vendor_non_secret_prod_partition[i * 4..i * 4 + 4]
+                        .try_into()
+                        .unwrap_or_else(|_| fatal_error(McuError::ROM_SOC_UDS_SEED_LEN_MISMATCH)),
+                );
+                self.registers.fuse_uds_seed[i].set(word);
+            }
+
+            // Field Entropy from vendor_non_secret_prod_partition (32 bytes after UDS)
+            romtime::println!("[mcu-fuse-write] Writing field entropy");
+            if size_of_val(&fuses.vendor_non_secret_prod_partition[64..96])
+                != size_of_val(&self.registers.fuse_field_entropy)
+            {
+                fatal_error(McuError::ROM_SOC_FIELD_ENTROPY_LEN_MISMATCH);
+            }
+            for i in 0..self.registers.fuse_field_entropy.len() {
+                let word = u32::from_le_bytes(
+                    fuses.vendor_non_secret_prod_partition[64 + i * 4..64 + i * 4 + 4]
+                        .try_into()
+                        .unwrap_or_else(|_| {
+                            fatal_error(McuError::ROM_SOC_FIELD_ENTROPY_LEN_MISMATCH)
+                        }),
+                );
+                self.registers.fuse_field_entropy[i].set(word);
+            }
         }
 
         romtime::println!("[mcu-fuse-write] Finished writing OCP LOCK fuses");
