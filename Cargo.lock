@@ -2934,9 +2934,7 @@ dependencies = [
  "caliptra-image-types",
  "cargo_metadata",
  "chrono",
- "crc32fast",
  "elf",
- "emulator-consts",
  "flash-image",
  "hex",
  "mcu-config",
@@ -2945,7 +2943,6 @@ dependencies = [
  "pldm-fw-pkg",
  "semver",
  "serde",
- "serde_json",
  "subst",
  "tbf-header",
  "tempfile",
@@ -3039,7 +3036,6 @@ name = "mcu-hw-model"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bit-vec",
  "bitfield",
  "caliptra-api",
  "caliptra-api-types",
@@ -3076,7 +3072,6 @@ dependencies = [
  "semver",
  "sha2",
  "sha3 0.10.8",
- "tempfile",
  "thiserror 2.0.17",
  "tock-registers",
  "uio",
@@ -5836,7 +5831,6 @@ dependencies = [
  "cc",
  "clap 4.5.51",
  "clap-num",
- "crc32fast",
  "elf",
  "mcu-builder",
  "mcu-config-emulator",
@@ -5858,7 +5852,6 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "walkdir",
- "zerocopy",
 ]
 
 [[package]]
