@@ -2947,6 +2947,7 @@ dependencies = [
  "serde",
  "serde_json",
  "subst",
+ "tbf-header",
  "tempfile",
  "uuid",
  "walkdir",
@@ -3010,8 +3011,10 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap 4.5.51",
+ "elf",
  "serde",
  "subst",
+ "tbf-header",
  "tempfile",
  "toml 0.8.23",
  "uuid",
@@ -4762,6 +4765,10 @@ dependencies = [
  "libtock_platform",
  "libtock_unittest",
 ]
+
+[[package]]
+name = "tbf-header"
+version = "0.0.0"
 
 [[package]]
 name = "tempfile"
