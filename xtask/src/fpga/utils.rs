@@ -208,7 +208,8 @@ impl NextestArchiveCommand {
     }
 
     pub fn build(self) -> String {
-        let mut cmd = format!("cd {} && ", self.work_dir);
+        let mut cmd = "(ldconfig -p | grep -q libclang.so || (apt-get update && apt-get install -y libclang-dev)) && ".to_string();
+        cmd.push_str(&format!("cd {} && ", self.work_dir));
         cmd.push_str("CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc ");
         cmd.push_str("cargo nextest archive ");
 
@@ -307,6 +308,7 @@ impl Container {
         let basename = caliptra_sw.file_name().unwrap().to_str().unwrap();
         let display = caliptra_path.display();
         self.volume(&display.to_string(), &format!("/{basename}"));
+
         self.arg("ghcr.io/chipsalliance/caliptra-build-image:latest")
             .arg("/bin/bash")
             .arg("-c");
