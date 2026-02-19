@@ -161,6 +161,11 @@ SECTIONS
 
     ROM_DATA = .;
 
+    /DISCARD/ :
+    {
+        *(.eh_frame*)
+    }
+
     .data : AT(ROM_DATA)
     {
         . = ALIGN(4);
