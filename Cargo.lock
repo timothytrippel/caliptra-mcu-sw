@@ -5189,6 +5189,7 @@ dependencies = [
  "caliptra-registers",
  "chrono",
  "crc",
+ "ecdsa",
  "emulator-consts",
  "emulator-periph",
  "fips204",
