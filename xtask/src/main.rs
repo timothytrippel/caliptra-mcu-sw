@@ -209,7 +209,19 @@ enum Commands {
     /// Add Apache license header to files where it is missing
     HeaderFix,
     /// Run tests
-    Test,
+    Test {
+        /// Archive tests to a file
+        #[arg(long)]
+        archive: Option<String>,
+
+        /// Run tests in a shard (e.g., "hash:1/4")
+        #[arg(long)]
+        shard: Option<String>,
+
+        /// Remap workspace path for archived tests
+        #[arg(long)]
+        workspace_remap: Option<PathBuf>,
+    },
     /// Check that the ROM builds do not contain any panic symbols
     RomCheckPanic,
     /// Autogenerate register files and emulator bus from RDL
@@ -526,7 +538,15 @@ fn main() {
         Commands::CargoLock => cargo_lock::cargo_lock(),
         Commands::HeaderFix => header::fix(),
         Commands::HeaderCheck => header::check(),
-        Commands::Test => test::test(),
+        Commands::Test {
+            archive,
+            shard,
+            workspace_remap,
+        } => test::test(test::TestArgs {
+            archive: archive.as_deref(),
+            shard: shard.as_deref(),
+            workspace_remap: workspace_remap.as_deref().and_then(|p| p.to_str()),
+        }),
         Commands::RomCheckPanic => test::test_panic_missing(),
         Commands::RegistersAutogen {
             check,
