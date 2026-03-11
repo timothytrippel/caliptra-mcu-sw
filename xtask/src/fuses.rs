@@ -134,6 +134,8 @@ fn build_partition_mmap(
         } else {
             0
         };
+        let zeroize_size = if partition.zeroizable { 8 } else { 0 };
+
         let calculated_size: usize = partition
             .items
             .iter()
@@ -141,9 +143,9 @@ fn build_partition_mmap(
             .sum();
 
         let calculated_size = if digest_size == 8 {
-            calculated_size.next_multiple_of(8) + digest_size
+            calculated_size.next_multiple_of(8) + digest_size + zeroize_size
         } else {
-            calculated_size.next_multiple_of(4)
+            calculated_size.next_multiple_of(4) + zeroize_size
         };
 
         let size = partition
