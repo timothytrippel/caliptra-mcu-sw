@@ -704,7 +704,7 @@ pub const FUSE_ENTRY_TABLE: &[FuseEntryInfo] = &[
     FuseEntryInfo {
         partition_num: 14,
         entry_num: 0,
-        byte_offset: 0xa78,
+        byte_offset: 0xaa8,
         byte_size: 32,
         name: "dot_initialized",
         layout: FuseLayoutType::LinearMajorityVote {
@@ -715,7 +715,7 @@ pub const FUSE_ENTRY_TABLE: &[FuseEntryInfo] = &[
     FuseEntryInfo {
         partition_num: 14,
         entry_num: 1,
-        byte_offset: 0xa98,
+        byte_offset: 0xac8,
         byte_size: 32,
         name: "dot_fuse_array",
         layout: FuseLayoutType::OneHot { bits: 256 },
@@ -723,7 +723,7 @@ pub const FUSE_ENTRY_TABLE: &[FuseEntryInfo] = &[
     FuseEntryInfo {
         partition_num: 13,
         entry_num: 0,
-        byte_offset: 0x870,
+        byte_offset: 0x898,
         byte_size: 32,
         name: "vendor_recovery_pk_hash",
         layout: FuseLayoutType::Single { bits: 384 },
