@@ -14,4 +14,16 @@ pub enum OcpError {
     ProtCapRecoveryMemoryAccessRequired = 3,
     /// The provided buffer is too small to hold the serialized message.
     BufferTooSmall = 4,
+    /// DEVICE_RESET: Byte pattern in the Device Reset is invalid.
+    DeviceResetInvalid = 5,
+    /// Message slice is too short for the expected command.
+    MessageTooShort = 6,
+    /// Message slice is longer than the expected command.
+    MessageTooLong = 7,
+    /// RECOVERY_CTRL: Byte pattern in the recovery control is invalid.
+    RecoveryCtrlInvalid = 8,
+    /// RECOVERY_STATUS: image_index exceeds 4-bit range (0-15).
+    RecoveryStatusImageIndexOutOfRange = 9,
+    /// RECOVERY_STATUS: reserved value in Device Recovery Status field (byte 0, bits 0-3).
+    RecoveryStatusInvalidStatus = 10,
 }
