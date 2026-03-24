@@ -153,6 +153,7 @@ pub(crate) enum Fpga {
         /// When set copy test binaries to `target_host`
         #[arg(long)]
         target_host: Option<String>,
+
         /// Filter packages for the test archive. This can be used to reduce the total archive
         /// size and speed up `build-test` commands.
         ///
@@ -168,6 +169,7 @@ pub(crate) enum Fpga {
         /// When set run commands over ssh to `target_host`
         #[arg(long)]
         target_host: Option<String>,
+
         /// A specific test filter to apply.
         #[arg(long)]
         test_filter: Option<String>,
