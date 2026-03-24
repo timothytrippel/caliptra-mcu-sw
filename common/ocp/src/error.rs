@@ -46,6 +46,12 @@ pub enum OcpError {
     DeviceIdVendorStringTooLong = 19,
     /// A CMS region buffer is empty or its length is not a multiple of 4.
     InvalidCmsBufferSize = 20,
+    /// The byte pattern does not match a valid recovery command.
+    InvalidOcpRecoveryCommand = 21,
+    /// The `bRequest` value does not match a known USB Standard Device Request (Table 9-4).
+    InvalidStandardRequest = 22,
+    /// The value does not match a known USB Descriptor Type (Table 9-5).
+    InvalidDescriptorType = 23,
 }
 
 /// Errors returned by CMS region operations.
