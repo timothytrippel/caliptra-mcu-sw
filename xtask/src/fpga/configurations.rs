@@ -11,7 +11,7 @@ use super::{
         check_ssh_access, download_bitstream, load_bitstream, rsync_file, run_test_suite,
         NextestArchiveCommand,
     },
-    ActionHandler, BuildArgs, BuildTestArgs, TestArgs,
+    ActionHandler, BootstrapArgs, BuildArgs, BuildTestArgs, TestArgs,
 };
 
 /// The FPGA configuration mode
@@ -89,11 +89,11 @@ impl<'a> Configuration {
 }
 
 impl<'a> ActionHandler<'a> for CommandExecutor {
-    fn bootstrap(&self) -> Result<()> {
+    fn bootstrap(&self, args: &'a BootstrapArgs<'a>) -> Result<()> {
         match self {
-            Self::Subsystem(sub) => sub.bootstrap(),
-            Self::CoreOnSubsystem(core) => core.bootstrap(),
-            Self::Core(core) => core.bootstrap(),
+            Self::Subsystem(sub) => sub.bootstrap(args),
+            Self::CoreOnSubsystem(core) => core.bootstrap(args),
+            Self::Core(core) => core.bootstrap(args),
         }
     }
 
@@ -170,7 +170,7 @@ impl Subsystem {
 }
 
 impl<'a> ActionHandler<'a> for Subsystem {
-    fn bootstrap(&self) -> Result<()> {
+    fn bootstrap(&self, args: &'a BootstrapArgs<'a>) -> Result<()> {
         let bootstrap_cmd= "[ -d caliptra-mcu-sw ] || git clone https://github.com/chipsalliance/caliptra-mcu-sw --branch=main --depth=1";
         let target_host = self.target_host.as_deref();
         run_command(target_host, bootstrap_cmd).context("failed to clone caliptra-mcu-sw repo")?;
@@ -180,13 +180,28 @@ impl<'a> ActionHandler<'a> for Subsystem {
             return Ok(());
         }
 
-        let subsystem_bitstream = PROJECT_ROOT
-            .join("hw")
-            .join("fpga")
-            .join("bitstream_manifests")
-            .join("subsystem.toml");
-        download_bitstream(self.target_host.as_deref(), &subsystem_bitstream)?;
-        load_bitstream(self.target_host.as_deref())?;
+        if let Some(bitstream) = args.bitstream {
+            if let Some(target_host) = target_host {
+                rsync_file(
+                    target_host,
+                    &bitstream.display().to_string(),
+                    "caliptra-bitstream.pdi",
+                    false,
+                )
+                .context("failed to copy bitstream to fpga")?;
+            } else {
+                std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
+            }
+            load_bitstream(target_host)?;
+        } else {
+            let subsystem_bitstream = PROJECT_ROOT
+                .join("hw")
+                .join("fpga")
+                .join("bitstream_manifests")
+                .join("subsystem.toml");
+            download_bitstream(self.target_host.as_deref(), &subsystem_bitstream)?;
+            load_bitstream(self.target_host.as_deref())?;
+        }
         Ok(())
     }
 
@@ -285,7 +300,7 @@ impl CoreOnSubsystem {
 }
 
 impl<'a> ActionHandler<'a> for CoreOnSubsystem {
-    fn bootstrap(&self) -> Result<()> {
+    fn bootstrap(&self, args: &'a BootstrapArgs<'a>) -> Result<()> {
         let bootstrap_cmd= "[ -d caliptra-sw ] || git clone https://github.com/chipsalliance/caliptra-sw --branch=caliptra-2.0 --depth=1";
         let target_host = self.target_host.as_deref();
         run_command(target_host, bootstrap_cmd).context("failed to clone caliptra-sw repo")?;
@@ -295,14 +310,40 @@ impl<'a> ActionHandler<'a> for CoreOnSubsystem {
             return Ok(());
         }
 
+        if let Some(bitstream) = args.bitstream {
+            if let Some(target_host) = target_host {
+                rsync_file(
+                    target_host,
+                    &bitstream.display().to_string(),
+                    "caliptra-bitstream.pdi",
+                    false,
+                )
+                .context("failed to copy bitstream to fpga")?;
+            } else {
+                std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
+            }
+            load_bitstream(target_host)?;
+        } else {
+            let caliptra_sw = caliptra_sw_workspace_root();
+            let subsystem_bitstream = caliptra_sw
+                .join("hw")
+                .join("fpga")
+                .join("bitstream_manifests")
+                .join("subsystem.toml");
+            download_bitstream(self.target_host.as_deref(), &subsystem_bitstream)?;
+            load_bitstream(self.target_host.as_deref())?;
+        }
+        Ok(())
+    }
+
+    fn download_bitstream(&self) -> Result<()> {
         let caliptra_sw = caliptra_sw_workspace_root();
         let subsystem_bitstream = caliptra_sw
             .join("hw")
             .join("fpga")
             .join("bitstream_manifests")
             .join("subsystem.toml");
-        download_bitstream(self.target_host.as_deref(), &subsystem_bitstream)?;
-        load_bitstream(self.target_host.as_deref())?;
+        download_bitstream(None, &subsystem_bitstream)?;
         Ok(())
     }
 
@@ -406,7 +447,7 @@ impl Core {
 }
 
 impl<'a> ActionHandler<'a> for Core {
-    fn bootstrap(&self) -> Result<()> {
+    fn bootstrap(&self, args: &'a BootstrapArgs<'a>) -> Result<()> {
         let bootstrap_cmd= "[ -d caliptra-sw ] || git clone https://github.com/chipsalliance/caliptra-sw --branch=caliptra-2.0 --depth=1";
         let target_host = self.target_host.as_deref();
         run_command(target_host, bootstrap_cmd).context("failed to clone caliptra-sw repo")?;
@@ -416,14 +457,29 @@ impl<'a> ActionHandler<'a> for Core {
             return Ok(());
         }
 
-        let caliptra_sw = caliptra_sw_workspace_root();
-        let core_bitstream = caliptra_sw
-            .join("hw")
-            .join("fpga")
-            .join("bitstream_manifests")
-            .join("core.toml");
-        download_bitstream(self.target_host.as_deref(), &core_bitstream)?;
-        load_bitstream(self.target_host.as_deref())?;
+        if let Some(bitstream) = args.bitstream {
+            if let Some(target_host) = target_host {
+                rsync_file(
+                    target_host,
+                    &bitstream.display().to_string(),
+                    "caliptra-bitstream.pdi",
+                    false,
+                )
+                .context("failed to copy bitstream to fpga")?;
+            } else {
+                std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
+            }
+            load_bitstream(target_host)?;
+        } else {
+            let caliptra_sw = caliptra_sw_workspace_root();
+            let core_bitstream = caliptra_sw
+                .join("hw")
+                .join("fpga")
+                .join("bitstream_manifests")
+                .join("core.toml");
+            download_bitstream(self.target_host.as_deref(), &core_bitstream)?;
+            load_bitstream(self.target_host.as_deref())?;
+        }
         Ok(())
     }
 
