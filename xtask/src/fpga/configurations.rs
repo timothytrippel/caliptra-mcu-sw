@@ -215,23 +215,26 @@ impl<'a> ActionHandler<'a> for Subsystem {
         Ok(())
     }
 
-    fn build(&self, _: &'a BuildArgs<'a>) -> Result<()> {
+    fn build(&self, args: &'a BuildArgs<'a>) -> Result<()> {
         // TODO(clundin): Modify `mcu_builder::all_build` to return the zip instead of writing it?
         // TODO(clundin): Place FPGA xtask artifacts in a specific folder?
-        let mcu_cfgs = Some(vec![ImageCfg {
-            path: "mcu".into(),
-            load_addr: 0x0,
-            staging_addr: 0xB00C0000,
-            image_id: 2,
-            exec_bit: 2,
-            component_id: 2,
-            feature: "test-fpga-flash-ctrl".to_string(),
-        }]);
+        let mcu_cfgs = args.mcu_cfgs.clone().or_else(|| {
+            Some(vec![ImageCfg {
+                path: "mcu".into(),
+                load_addr: 0x0,
+                staging_addr: 0xB00C0000,
+                image_id: 2,
+                exec_bit: 2,
+                component_id: 2,
+                feature: "test-fpga-flash-ctrl".to_string(),
+            }])
+        });
         let args = AllBuildArgs {
             output: Some("all-fw.zip"),
             platform: Some("fpga"),
+            rom_features: args.rom_features.as_deref(),
             mcu_cfgs: mcu_cfgs,
-            separate_runtimes: true,
+            separate_runtimes: args.separate_runtimes,
             ..Default::default()
         };
         mcu_builder::all_build(args)?;
@@ -242,16 +245,20 @@ impl<'a> ActionHandler<'a> for Subsystem {
     }
 
     fn build_test(&self, args: &'a BuildTestArgs<'a>) -> Result<()> {
-        let mut container = build_base_container_command()?;
         let cmd = NextestArchiveCommand::new("/work-dir")
             .feature("fpga_realtime")
             .package_filter(args.package_filter.as_deref())
             .build();
 
-        container.arg(&cmd);
-        container
-            .status()
-            .context("failed to cross compile tests")?;
+        if args.no_container {
+            run_command(None, &cmd.replace("/work-dir", "."))?;
+        } else {
+            let mut container = build_base_container_command()?;
+            container.arg(&cmd);
+            container
+                .status()
+                .context("failed to cross compile tests")?;
+        }
         if let Some(target_host) = &self.target_host {
             rsync_file(target_host, "caliptra-test-binaries.tar.zst", ".", false)
                 .context("failed to copy tests to fpga")?;
@@ -358,7 +365,7 @@ impl<'a> ActionHandler<'a> for CoreOnSubsystem {
         let caliptra_sw = caliptra_sw_workspace_root();
         let rom_path = mcu_builder::rom_build(&mcu_builder::CaliptraBuildArgs {
             platform: Some("fpga"),
-            features: Some("core_test"),
+            features: args.rom_features.as_deref().or(Some("core_test")),
             ..Default::default()
         })?;
         if !args.mcu {
@@ -385,16 +392,20 @@ impl<'a> ActionHandler<'a> for CoreOnSubsystem {
         let caliptra_sw = caliptra_sw_workspace_root();
         let base_name = caliptra_sw.file_name().unwrap().to_str().unwrap();
 
-        let mut container = build_base_container_command()?;
         let cmd = NextestArchiveCommand::new(&format!("/{base_name}"))
             .features(&["fpga_subsystem", "itrng"])
             .package_filter(args.package_filter.as_deref())
             .build();
 
-        container.arg(&cmd);
-        container
-            .status()
-            .context("failed to cross compile tests")?;
+        if args.no_container {
+            run_command(None, &cmd.replace(&format!("/{base_name}"), "."))?;
+        } else {
+            let mut container = build_base_container_command()?;
+            container.arg(&cmd);
+            container
+                .status()
+                .context("failed to cross compile tests")?;
+        }
         if let Some(target_host) = &self.target_host {
             rsync_file(target_host, "caliptra-test-binaries.tar.zst", ".", false)
                 .context("failed to copy tests to fpga")?;
@@ -518,16 +529,20 @@ impl<'a> ActionHandler<'a> for Core {
         let caliptra_sw = caliptra_sw_workspace_root();
         let base_name = caliptra_sw.file_name().unwrap().to_str().unwrap();
 
-        let mut container = build_base_container_command()?;
         let cmd = NextestArchiveCommand::new(&format!("/{base_name}"))
             .features(&["fpga_realtime", "itrng"])
             .package_filter(args.package_filter.as_deref())
             .build();
 
-        container.arg(&cmd);
-        container
-            .status()
-            .context("failed to cross compile tests")?;
+        if args.no_container {
+            run_command(None, &cmd.replace(&format!("/{base_name}"), "."))?;
+        } else {
+            let mut container = build_base_container_command()?;
+            container.arg(&cmd);
+            container
+                .status()
+                .context("failed to cross compile tests")?;
+        }
         if let Some(target_host) = &self.target_host {
             rsync_file(target_host, "caliptra-test-binaries.tar.zst", ".", false)
                 .context("failed to copy tests to fpga")?;
