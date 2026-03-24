@@ -6,7 +6,7 @@ use caliptra_image_types::FwVerificationPqcKeyType;
 use clap::Subcommand;
 use configurations::Configuration;
 use mcu_builder::flash_image::build_flash_image_bytes;
-use mcu_builder::FirmwareBinaries;
+use mcu_builder::{FirmwareBinaries, ImageCfg};
 use mcu_hw_model::{InitParams, McuHwModel, ModelFpgaRealtime};
 use mcu_rom_common::LifecycleControllerState;
 use std::path::{Path, PathBuf};
@@ -23,6 +23,9 @@ mod utils;
 struct BuildArgs<'a> {
     mcu: bool,
     fw_id: &'a Option<String>,
+    rom_features: &'a Option<String>,
+    separate_runtimes: bool,
+    mcu_cfgs: &'a Option<Vec<ImageCfg>>,
 }
 
 struct BootstrapArgs<'a> {
@@ -31,6 +34,7 @@ struct BootstrapArgs<'a> {
 
 struct BuildTestArgs<'a> {
     package_filter: &'a Option<String>,
+    no_container: bool,
 }
 struct TestArgs<'a> {
     test_filter: &'a Option<String>,
@@ -116,6 +120,25 @@ pub(crate) enum Fpga {
         /// By default all Caliptra firmware binaries are built
         #[arg(long)]
         fw_id: Option<String>,
+
+        /// Rom features to build with
+        #[arg(long)]
+        rom_features: Option<String>,
+
+        /// Build a separate runtime for each feature flag
+        #[arg(long)]
+        separate_runtimes: bool,
+
+        // MCU configuration to include in the SoC manifest
+        // format: mcu,<load_addr>,<staging_addr>,<image_id>,<exec_bit>,<component_id>,<feature>
+        // Example: --mcu_cfg mcu,0x10000000,0x10000000,1,1,1,test-dma
+        #[arg(
+            long = "mcu_cfg",
+            value_name = "MCU_CFG",
+            num_args = 1..,
+            required = false
+        )]
+        mcu_cfgs: Option<Vec<ImageCfg>>,
     },
     /// Build FPGA test binaries
     BuildTest {
@@ -128,6 +151,9 @@ pub(crate) enum Fpga {
         /// Uses a `cargo-nextest` package filter-set, e.g. `package(caliptra-rom)`.
         #[arg(long)]
         package_filter: Option<String>,
+        /// Build tests without using a container.
+        #[arg(long)]
+        no_container: bool,
     },
     /// Run FPGA tests
     Test {
@@ -211,7 +237,10 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
         Fpga::Build {
             target_host,
             mcu,
-            fw_id: calitpra_fw_id,
+            fw_id,
+            rom_features,
+            separate_runtimes,
+            mcu_cfgs,
         } => {
             println!("Building FPGA firmware");
             let config = Configuration::from_cmd(target_host.as_deref())?;
@@ -220,19 +249,26 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
                 .set_target_host(target_host.as_deref())
                 .build(&BuildArgs {
                     mcu: *mcu,
-                    fw_id: calitpra_fw_id,
+                    fw_id,
+                    rom_features,
+                    separate_runtimes: *separate_runtimes,
+                    mcu_cfgs,
                 })?;
         }
         Fpga::BuildTest {
             target_host,
             package_filter,
+            no_container,
         } => {
             println!("Building FPGA tests");
             let config = Configuration::from_cmd(target_host.as_deref())?;
             config
                 .executor()
                 .set_target_host(target_host.as_deref())
-                .build_test(&BuildTestArgs { package_filter })?;
+                .build_test(&BuildTestArgs {
+                    package_filter,
+                    no_container: *no_container,
+                })?;
         }
         Fpga::Bootstrap {
             target_host,
@@ -449,5 +485,6 @@ pub(crate) fn fpga_run(args: crate::Commands) -> Result<()> {
         );
         model.save_otp_memory(otp_file.as_ref().unwrap())?;
     }
+
     Ok(())
 }
