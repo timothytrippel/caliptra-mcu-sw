@@ -112,6 +112,9 @@ pub(crate) enum Fpga {
         #[arg(long)]
         target_host: Option<String>,
 
+        #[arg(long, value_enum)]
+        configuration: Option<Configuration>,
+
         /// Only Build MCU binaries
         #[arg(long)]
         mcu: bool,
@@ -145,6 +148,10 @@ pub(crate) enum Fpga {
         /// When set copy test binaries to `target_host`
         #[arg(long)]
         target_host: Option<String>,
+
+        #[arg(long, value_enum)]
+        configuration: Option<Configuration>,
+
         /// Filter packages for the test archive. This can be used to reduce the total archive
         /// size and speed up `build-test` commands.
         ///
@@ -160,6 +167,10 @@ pub(crate) enum Fpga {
         /// When set run commands over ssh to `target_host`
         #[arg(long)]
         target_host: Option<String>,
+
+        #[arg(long, value_enum)]
+        configuration: Option<Configuration>,
+
         /// A specific test filter to apply.
         #[arg(long)]
         test_filter: Option<String>,
@@ -236,6 +247,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
     match args {
         Fpga::Build {
             target_host,
+            configuration,
             mcu,
             fw_id,
             rom_features,
@@ -243,7 +255,11 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             mcu_cfgs,
         } => {
             println!("Building FPGA firmware");
-            let config = Configuration::from_cmd(target_host.as_deref())?;
+            let config = if let Some(config) = configuration {
+                *config
+            } else {
+                Configuration::from_cmd(target_host.as_deref())?
+            };
             config
                 .executor()
                 .set_target_host(target_host.as_deref())
@@ -257,11 +273,16 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
         }
         Fpga::BuildTest {
             target_host,
+            configuration,
             package_filter,
             no_container,
         } => {
             println!("Building FPGA tests");
-            let config = Configuration::from_cmd(target_host.as_deref())?;
+            let config = if let Some(config) = configuration {
+                *config
+            } else {
+                Configuration::from_cmd(target_host.as_deref())?
+            };
             config
                 .executor()
                 .set_target_host(target_host.as_deref())
@@ -313,6 +334,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
         }
         Fpga::Test {
             target_host,
+            configuration,
             test_filter,
             test_output,
         } => {
@@ -322,7 +344,11 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             // Clear old test logs
             run_command(target_host.as_deref(), "(sudo rm /tmp/junit.xml || true)")?;
 
-            let config = Configuration::from_cmd(target_host.as_deref())?;
+            let config = if let Some(config) = configuration {
+                *config
+            } else {
+                Configuration::from_cmd(target_host.as_deref())?
+            };
             config
                 .executor()
                 .set_target_host(target_host.as_deref())

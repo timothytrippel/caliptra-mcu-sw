@@ -134,6 +134,7 @@ jobs:
           # Build ROM and runtime binaries
           echo "Cross compiling FPGA binaries"
           cargo xtask-fpga fpga build \
+            --configuration subsystem \
             --rom-features "core_test" \
             --mcu_cfg mcu,0x0,0xB00C0000,2,2,2,test-fpga-flash-ctrl \
             --separate-runtimes
@@ -144,7 +145,7 @@ jobs:
             all-fw.zip
 
           echo "Cross compiling test binaries"
-          cargo xtask-fpga fpga build-test
+          cargo xtask-fpga fpga build-test --configuration subsystem
           sccache --show-stats
 
           echo "Cross compiling xtask for FPGA"
@@ -238,7 +239,7 @@ jobs:
 
           # all-fw.zip is in current directory after tar -xvf
           chmod +x /tmp/caliptra-binaries/xtask
-          /tmp/caliptra-binaries/xtask fpga test
+          /tmp/caliptra-binaries/xtask fpga test --configuration subsystem
 
       - name: 'Upload test results'
         uses: actions/upload-artifact@v4
