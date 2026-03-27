@@ -19,31 +19,28 @@ pub fn check_host_dependencies() -> Result<()> {
     if Container::try_new().is_err() {
         bail!("Neither 'podman' nor 'docker' found on PATH. Please install one of them.");
     }
-    let tools = [
-        (
-            "rsync --version",
-            "'rsync' not found on PATH. Please install rsync.",
-        ),
-        (
-            "cargo nextest --version",
-            "'cargo-nextest' not found on PATH. Please install with `cargo install cargo-nextest`.",
-        ),
-    ];
+    let tools = [(
+        "rsync --version",
+        "'rsync' not found on PATH. Please install rsync.",
+    )];
     check_dependencies(None, &tools)
 }
 
 /// Check that FPGA  has all the tools that the xtask FPGA flows depends on.
 pub fn check_fpga_dependencies(target_host: Option<&str>) -> Result<()> {
-    let tools = [
-        (
-            "rsync --version",
-            "'rsync' not found on FPGA PATH. Please install rsync on FPGA.",
-        ),
-        (
-            "cargo-nextest --version",
-            "'cargo-nextest' not found on FPGA PATH. Please install with `cargo install cargo-nextest` on FPGA.",
-        ),
-    ];
+    let tools = [(
+        "rsync --version",
+        "'rsync' not found on FPGA PATH. Please install rsync on FPGA.",
+    )];
+    check_dependencies(target_host, &tools)
+}
+
+/// Check that the target (host or FPGA) has the tools required for running tests.
+pub fn check_test_dependencies(target_host: Option<&str>) -> Result<()> {
+    let tools = [(
+        "cargo nextest --version",
+        "'cargo-nextest' not found. Please install with `cargo install cargo-nextest`.",
+    )];
     check_dependencies(target_host, &tools)
 }
 

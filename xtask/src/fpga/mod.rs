@@ -12,8 +12,8 @@ use mcu_rom_common::LifecycleControllerState;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use utils::{
-    check_fpga_dependencies, check_host_dependencies, check_ssh_access, run_command,
-    run_command_with_output,
+    check_fpga_dependencies, check_host_dependencies, check_ssh_access, check_test_dependencies,
+    run_command, run_command_with_output,
 };
 
 mod configurations;
@@ -278,6 +278,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             no_container,
         } => {
             println!("Building FPGA tests");
+            check_test_dependencies(None)?;
             let config = if let Some(config) = configuration {
                 *config
             } else {
@@ -303,7 +304,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             check_ssh_access(target_host)?;
             check_fpga_dependencies(target_host)?;
 
-            let hostname = run_command_with_output(target_host, "hostname")?;
+            let hostname = run_command_with_output(target_host, "hostname").unwrap_or_default();
 
             // skip this step for CI images. Kernel modules are already installed.
             let caliptra_fpga = hostname.trim_end() == "caliptra-fpga";
@@ -339,6 +340,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             test_output,
         } => {
             println!("Running test suite on FPGA");
+            check_test_dependencies(target_host.as_deref())?;
             is_module_loaded("io_module", target_host.as_deref())?;
 
             // Clear old test logs
