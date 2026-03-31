@@ -108,6 +108,10 @@ pub(crate) enum Fpga {
     },
     /// Build FPGA firmware
     Build {
+        /// The FPGA configuration mode
+        #[arg(long, value_enum)]
+        configuration: Option<Configuration>,
+
         /// When set copy firmware to `target_host`
         #[arg(long)]
         target_host: Option<String>,
@@ -142,6 +146,10 @@ pub(crate) enum Fpga {
     },
     /// Build FPGA test binaries
     BuildTest {
+        /// The FPGA configuration mode
+        #[arg(long, value_enum)]
+        configuration: Option<Configuration>,
+
         /// When set copy test binaries to `target_host`
         #[arg(long)]
         target_host: Option<String>,
@@ -235,6 +243,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
     check_host_dependencies()?;
     match args {
         Fpga::Build {
+            configuration,
             target_host,
             mcu,
             fw_id,
@@ -243,7 +252,7 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
             mcu_cfgs,
         } => {
             println!("Building FPGA firmware");
-            let config = Configuration::from_cmd(target_host.as_deref())?;
+            let config = get_and_validate_configuration(*configuration, target_host.as_deref())?;
             config
                 .executor()
                 .set_target_host(target_host.as_deref())
@@ -256,12 +265,13 @@ pub(crate) fn fpga_entry(args: &Fpga) -> Result<()> {
                 })?;
         }
         Fpga::BuildTest {
+            configuration,
             target_host,
             package_filter,
             no_container,
         } => {
             println!("Building FPGA tests");
-            let config = Configuration::from_cmd(target_host.as_deref())?;
+            let config = get_and_validate_configuration(*configuration, target_host.as_deref())?;
             config
                 .executor()
                 .set_target_host(target_host.as_deref())
@@ -487,4 +497,24 @@ pub(crate) fn fpga_run(args: crate::Commands) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Validates the provided configuration against the configuration on the target host.
+/// If no configuration is provided, attempts to retrieve it from the target host.
+fn get_and_validate_configuration(
+    provided: Option<Configuration>,
+    target_host: Option<&str>,
+) -> Result<Configuration> {
+    let host_config = Configuration::from_cmd_optional(target_host)?;
+    match (provided, host_config) {
+        (Some(p), Some(h)) => {
+            if p != h {
+                bail!("Provided configuration {:?} does not match FPGA configuration {:?} on host", p, h);
+            }
+            Ok(p)
+        }
+        (Some(p), None) => Ok(p),
+        (None, Some(h)) => Ok(h),
+        (None, None) => bail!("FPGA is not bootstrapped. Need to run `xtask fpga bootstrap` or provide `--configuration`"),
+    }
 }
