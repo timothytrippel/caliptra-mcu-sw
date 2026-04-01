@@ -194,38 +194,19 @@ impl<'a> ActionHandler<'a> for Subsystem {
             return Ok(());
         }
 
-        if let Some(bitstream) = args.bitstream {
-            if let Some(target_host) = target_host {
-                rsync_file(
-                    target_host,
-                    &bitstream.display().to_string(),
-                    "caliptra-bitstream.pdi",
-                    false,
-                )
-                .context("failed to copy bitstream to fpga")?;
-            } else {
-                std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
-            }
-            load_bitstream(target_host)?;
-        } else {
-            let subsystem_bitstream = PROJECT_ROOT
-                .join("hw")
-                .join("fpga")
-                .join("bitstream_manifests")
-                .join("subsystem.toml");
-            download_bitstream(self.target_host.as_deref(), &subsystem_bitstream)?;
-            load_bitstream(self.target_host.as_deref())?;
-        }
+        handle_bitstream_bootstrap(
+            target_host,
+            args.bitstream.as_deref(),
+            &bitstream_manifest_path(&PROJECT_ROOT, "subsystem.toml"),
+        )?;
         Ok(())
     }
 
     fn download_bitstream(&self) -> Result<()> {
-        let subsystem_bitstream = PROJECT_ROOT
-            .join("hw")
-            .join("fpga")
-            .join("bitstream_manifests")
-            .join("subsystem.toml");
-        download_bitstream(None, &subsystem_bitstream)?;
+        download_bitstream(
+            None,
+            &bitstream_manifest_path(&PROJECT_ROOT, "subsystem.toml"),
+        )?;
         Ok(())
     }
 
@@ -333,40 +314,19 @@ impl<'a> ActionHandler<'a> for CoreOnSubsystem {
             return Ok(());
         }
 
-        if let Some(bitstream) = args.bitstream {
-            if let Some(target_host) = target_host {
-                rsync_file(
-                    target_host,
-                    &bitstream.display().to_string(),
-                    "caliptra-bitstream.pdi",
-                    false,
-                )
-                .context("failed to copy bitstream to fpga")?;
-            } else {
-                std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
-            }
-            load_bitstream(target_host)?;
-        } else {
-            let caliptra_sw = caliptra_sw_workspace_root();
-            let subsystem_bitstream = caliptra_sw
-                .join("hw")
-                .join("fpga")
-                .join("bitstream_manifests")
-                .join("subsystem.toml");
-            download_bitstream(self.target_host.as_deref(), &subsystem_bitstream)?;
-            load_bitstream(self.target_host.as_deref())?;
-        }
+        handle_bitstream_bootstrap(
+            target_host,
+            args.bitstream.as_deref(),
+            &bitstream_manifest_path(&caliptra_sw_workspace_root(), "subsystem.toml"),
+        )?;
         Ok(())
     }
 
     fn download_bitstream(&self) -> Result<()> {
-        let caliptra_sw = caliptra_sw_workspace_root();
-        let subsystem_bitstream = caliptra_sw
-            .join("hw")
-            .join("fpga")
-            .join("bitstream_manifests")
-            .join("subsystem.toml");
-        download_bitstream(None, &subsystem_bitstream)?;
+        download_bitstream(
+            None,
+            &bitstream_manifest_path(&caliptra_sw_workspace_root(), "subsystem.toml"),
+        )?;
         Ok(())
     }
     fn build(&self, args: &'a BuildArgs<'a>) -> Result<()> {
@@ -478,40 +438,19 @@ impl<'a> ActionHandler<'a> for Core {
             return Ok(());
         }
 
-        if let Some(bitstream) = args.bitstream {
-            if let Some(target_host) = target_host {
-                rsync_file(
-                    target_host,
-                    &bitstream.display().to_string(),
-                    "caliptra-bitstream.pdi",
-                    false,
-                )
-                .context("failed to copy bitstream to fpga")?;
-            } else {
-                std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
-            }
-            load_bitstream(target_host)?;
-        } else {
-            let caliptra_sw = caliptra_sw_workspace_root();
-            let core_bitstream = caliptra_sw
-                .join("hw")
-                .join("fpga")
-                .join("bitstream_manifests")
-                .join("core.toml");
-            download_bitstream(self.target_host.as_deref(), &core_bitstream)?;
-            load_bitstream(self.target_host.as_deref())?;
-        }
+        handle_bitstream_bootstrap(
+            target_host,
+            args.bitstream.as_deref(),
+            &bitstream_manifest_path(&caliptra_sw_workspace_root(), "core.toml"),
+        )?;
         Ok(())
     }
 
     fn download_bitstream(&self) -> Result<()> {
-        let caliptra_sw = caliptra_sw_workspace_root();
-        let core_bitstream = caliptra_sw
-            .join("hw")
-            .join("fpga")
-            .join("bitstream_manifests")
-            .join("core.toml");
-        download_bitstream(None, &core_bitstream)?;
+        download_bitstream(
+            None,
+            &bitstream_manifest_path(&caliptra_sw_workspace_root(), "core.toml"),
+        )?;
         Ok(())
     }
     fn build(&self, args: &'a BuildArgs<'a>) -> Result<()> {
@@ -581,4 +520,35 @@ impl<'a> ActionHandler<'a> for Core {
         )?;
         Ok(())
     }
+}
+
+fn bitstream_manifest_path(root: &std::path::Path, toml_name: &str) -> std::path::PathBuf {
+    root.join("hw")
+        .join("fpga")
+        .join("bitstream_manifests")
+        .join(toml_name)
+}
+
+fn handle_bitstream_bootstrap(
+    target_host: Option<&str>,
+    bitstream_arg: Option<&std::path::Path>,
+    manifest_path: &std::path::Path,
+) -> Result<()> {
+    if let Some(bitstream) = bitstream_arg {
+        if let Some(target_host) = target_host {
+            rsync_file(
+                target_host,
+                &bitstream.display().to_string(),
+                "caliptra-bitstream.pdi",
+                false,
+            )
+            .context("failed to copy bitstream to fpga")?;
+        } else {
+            std::fs::copy(bitstream, "caliptra-bitstream.pdi").context("copy bitstream pdi")?;
+        }
+    } else {
+        download_bitstream(target_host, manifest_path)?;
+    }
+    load_bitstream(target_host)?;
+    Ok(())
 }
