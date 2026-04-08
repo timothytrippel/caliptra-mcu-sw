@@ -208,11 +208,11 @@ enum Commands {
     HeaderCheck,
     /// Add Apache license header to files where it is missing
     HeaderFix,
-    /// Run tests
+    /// Run tests (or from an archive)
     Test {
         /// Archive tests to a file
         #[arg(long)]
-        archive: Option<String>,
+        archive: Option<PathBuf>,
 
         /// Run tests in a shard (e.g., "hash:1/4")
         #[arg(long)]
@@ -232,7 +232,13 @@ enum Commands {
     },
     /// Check that the ROM builds do not contain any panic symbols
     RomCheckPanic,
-    /// Autogenerate register files and emulator bus from RDL
+    /// Archive tests to a file
+    TestArchive {
+        /// Archive tests to a file
+        #[arg(long)]
+        archive: String,
+    },
+    /// Autogenerate register files, fuse files and emulator bus from RDL
     RegistersAutogen {
         /// Check output only
         #[arg(short, long, default_value_t = false)]
@@ -553,13 +559,14 @@ fn main() {
             firmware_bundle,
             emulator_bundle,
         } => test::test(test::TestArgs {
-            archive: archive.as_deref(),
+            archive: archive.as_deref().and_then(|p| p.to_str()),
             shard: shard.as_deref(),
             workspace_remap: workspace_remap.as_deref().and_then(|p| p.to_str()),
             firmware_bundle: firmware_bundle.as_deref().and_then(|p| p.to_str()),
             emulator_bundle: emulator_bundle.as_deref().and_then(|p| p.to_str()),
         }),
         Commands::RomCheckPanic => test::test_panic_missing(),
+        Commands::TestArchive { archive } => test::test_archive(archive.clone()),
         Commands::RegistersAutogen {
             check,
             files,
