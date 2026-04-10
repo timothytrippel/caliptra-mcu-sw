@@ -3,8 +3,10 @@
 #[cfg(test)]
 mod test {
     use crate::test::{finish_runtime_hw_model, start_runtime_hw_model, TestParams};
-    use mcu_hw_model::{DeviceLifecycle, LifecycleControllerState, McuHwModel, McuManager};
-    use mcu_testing_common::MCU_RUNNING;
+    use caliptra_mcu_hw_model::{
+        DeviceLifecycle, LifecycleControllerState, McuHwModel, McuManager,
+    };
+    use caliptra_mcu_testing_common::MCU_RUNNING;
     use std::sync::atomic::Ordering;
 
     #[test]

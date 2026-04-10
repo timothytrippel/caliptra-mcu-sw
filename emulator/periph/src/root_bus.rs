@@ -18,7 +18,7 @@ use caliptra_emu_bus::{Bus, BusError, Clock, Ram, Rom};
 use caliptra_emu_bus::{Device, Event, EventData};
 use caliptra_emu_cpu::{Irq, Pic, PicMmioRegisters};
 use caliptra_emu_types::{RvAddr, RvData, RvSize};
-use emulator_consts::{
+use caliptra_mcu_emulator_consts::{
     DIRECT_READ_FLASH_ORG, DIRECT_READ_FLASH_SIZE, DOT_FLASH_SIZE, EXTERNAL_TEST_SRAM_SIZE,
     MCU_MAILBOX0_SRAM_SIZE, MCU_MAILBOX1_SRAM_SIZE, RAM_SIZE, ROM_DEDICATED_RAM_ORG,
     ROM_DEDICATED_RAM_SIZE,
@@ -88,7 +88,7 @@ pub struct McuRootBusArgs {
     pub uart_rx: Option<Arc<Mutex<Option<u8>>>>,
     pub offsets: McuRootBusOffsets,
     pub allow_sideloaded_rom: bool,
-    pub straps: mcu_config::McuStraps,
+    pub straps: caliptra_mcu_config::McuStraps,
 }
 
 pub struct McuRootBus {
@@ -107,7 +107,7 @@ pub struct McuRootBus {
     event_sender: Option<mpsc::Sender<Event>>,
     offsets: McuRootBusOffsets,
     allow_sideloaded_rom: bool,
-    pub straps: mcu_config::McuStraps,
+    pub straps: caliptra_mcu_config::McuStraps,
 }
 
 impl McuRootBus {

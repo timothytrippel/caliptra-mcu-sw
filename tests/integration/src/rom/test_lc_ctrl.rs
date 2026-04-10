@@ -6,12 +6,12 @@
 #[cfg(test)]
 mod test {
     use crate::platform;
-    use mcu_builder::firmware;
-    use mcu_hw_model::{InitParams, McuHwModel, McuManager};
-    use mcu_rom_common::LifecycleControllerState;
+    use caliptra_mcu_builder::firmware;
+    use caliptra_mcu_hw_model::{InitParams, McuHwModel, McuManager};
+    use caliptra_mcu_rom_common::LifecycleControllerState;
 
     fn load_roms() -> (Vec<u8>, Vec<u8>) {
-        if let Ok(binaries) = mcu_builder::FirmwareBinaries::from_env() {
+        if let Ok(binaries) = caliptra_mcu_builder::FirmwareBinaries::from_env() {
             (
                 binaries.caliptra_rom.clone(),
                 binaries
@@ -19,12 +19,13 @@ mod test {
                     .unwrap(),
             )
         } else {
-            let rom_file = mcu_builder::test_rom_build(&mcu_builder::CaliptraBuildArgs {
-                platform: Some(platform()),
-                fwid: Some(&firmware::hw_model_tests::LC_CTRL),
-                ..Default::default()
-            })
-            .unwrap();
+            let rom_file =
+                caliptra_mcu_builder::test_rom_build(&caliptra_mcu_builder::CaliptraBuildArgs {
+                    platform: Some(platform()),
+                    fwid: Some(&firmware::hw_model_tests::LC_CTRL),
+                    ..Default::default()
+                })
+                .unwrap();
             (vec![], std::fs::read(&rom_file).unwrap())
         }
     }
@@ -68,7 +69,7 @@ mod test {
         let (caliptra_rom, mcu_rom) = load_roms();
         let wires0 = encode_wires(target, token, expect_error);
 
-        let mut hw = mcu_hw_model::new(InitParams {
+        let mut hw = caliptra_mcu_hw_model::new(InitParams {
             caliptra_rom: &caliptra_rom,
             mcu_rom: &mcu_rom,
             check_booted_to_runtime: false,

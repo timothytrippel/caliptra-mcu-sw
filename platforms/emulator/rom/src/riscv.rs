@@ -24,18 +24,20 @@ use crate::flash::flash_boot_cfg::FlashBootCfg;
 use crate::flash::flash_drv::{
     EmulatedFlashCtrl, PRIMARY_FLASH_CTRL_BASE, SECONDARY_FLASH_CTRL_BASE,
 };
-use mcu_config::boot::{BootConfig, BootConfigError, PartitionId, PartitionStatus, RollbackEnable};
-use mcu_config::{McuMemoryMap, McuStraps};
-use mcu_config_emulator::flash::{
+use caliptra_mcu_config::boot::{
+    BootConfig, BootConfigError, PartitionId, PartitionStatus, RollbackEnable,
+};
+use caliptra_mcu_config::{McuMemoryMap, McuStraps};
+use caliptra_mcu_config_emulator::flash::{
     PartitionTable, StandAloneChecksumCalculator, IMAGE_A_PARTITION, IMAGE_B_PARTITION,
     PARTITION_TABLE,
 };
-use mcu_rom_common::flash::flash_partition::FlashPartition;
-use mcu_rom_common::hil::FlashStorage;
-use mcu_rom_common::memory::SimpleFlash;
-use mcu_rom_common::{fatal_error, RomParameters};
-use mcu_rom_common::{DotRecoveryHandler, DOT_BLOB_SIZE};
-use romtime::HexWord;
+use caliptra_mcu_rom_common::flash::flash_partition::FlashPartition;
+use caliptra_mcu_rom_common::hil::FlashStorage;
+use caliptra_mcu_rom_common::memory::SimpleFlash;
+use caliptra_mcu_rom_common::{fatal_error, RomParameters};
+use caliptra_mcu_rom_common::{DotRecoveryHandler, DOT_BLOB_SIZE};
+use caliptra_mcu_romtime::HexWord;
 use zerocopy::{transmute, FromBytes, IntoBytes};
 
 /// DOT recovery handler using MCI mbox0.
@@ -45,7 +47,7 @@ struct TestDotRecoveryHandler {
 }
 
 impl DotRecoveryHandler for TestDotRecoveryHandler {
-    fn read_recovery_blob(&self) -> mcu_error::McuResult<[u8; DOT_BLOB_SIZE]> {
+    fn read_recovery_blob(&self) -> caliptra_mcu_error::McuResult<[u8; DOT_BLOB_SIZE]> {
         Ok(self.blob)
     }
 }
@@ -53,24 +55,24 @@ impl DotRecoveryHandler for TestDotRecoveryHandler {
 // re-export these so the common ROM can use it
 #[no_mangle]
 #[used]
-pub static MCU_MEMORY_MAP: McuMemoryMap = mcu_config_emulator::EMULATOR_MEMORY_MAP;
+pub static MCU_MEMORY_MAP: McuMemoryMap = caliptra_mcu_config_emulator::EMULATOR_MEMORY_MAP;
 
 #[no_mangle]
 #[used]
-pub static MCU_STRAPS: McuStraps = mcu_config_emulator::EMULATOR_MCU_STRAPS;
+pub static MCU_STRAPS: McuStraps = caliptra_mcu_config_emulator::EMULATOR_MCU_STRAPS;
 
 pub extern "C" fn rom_entry() -> ! {
     unsafe {
         #[allow(static_mut_refs)]
-        romtime::set_printer(&mut EMULATOR_WRITER);
+        caliptra_mcu_romtime::set_printer(&mut EMULATOR_WRITER);
     }
     unsafe {
         #[allow(static_mut_refs)]
-        mcu_rom_common::set_fatal_error_handler(&mut FATAL_ERROR_HANDLER);
+        caliptra_mcu_rom_common::set_fatal_error_handler(&mut FATAL_ERROR_HANDLER);
     }
     unsafe {
         #[allow(static_mut_refs)]
-        romtime::set_exiter(&mut EMULATOR_EXITER);
+        caliptra_mcu_romtime::set_exiter(&mut EMULATOR_EXITER);
     }
 
     const EMULATOR_DOT_FLASH_ADDR: *mut u8 = 0x8100_0000 as *mut u8;
@@ -122,17 +124,17 @@ pub extern "C" fn rom_entry() -> ! {
 
         let mut flash_image_partition_driver = match active_partition {
             PartitionId::A => {
-                romtime::println!("[mcu-rom] Booting from Partition A");
+                caliptra_mcu_romtime::println!("[mcu-rom] Booting from Partition A");
                 partition_a
             }
             PartitionId::B => {
-                romtime::println!("[mcu-rom] Booting from Partition B");
+                caliptra_mcu_romtime::println!("[mcu-rom] Booting from Partition B");
                 partition_b
             }
             _ => fatal_error(EmulatorError::InvalidPartitionId.into()),
         };
 
-        mcu_rom_common::rom_start(RomParameters {
+        caliptra_mcu_rom_common::rom_start(RomParameters {
             flash_partition_driver: Some(&mut flash_image_partition_driver),
             dot_flash: Some(dot_flash),
             request_flash_boot: true,
@@ -152,7 +154,8 @@ pub extern "C" fn rom_entry() -> ! {
         let mcu_image_verifier = McuImageVerifier;
         let rom_parameters = RomParameters {
             mcu_image_verifier: Some(&mcu_image_verifier),
-            mcu_image_header_size: core::mem::size_of::<mcu_image_header::McuImageHeader>(),
+            mcu_image_header_size: core::mem::size_of::<caliptra_mcu_image_header::McuImageHeader>(
+            ),
             dot_flash: Some(dot_flash),
             otp_enable_integrity_check: true,
             otp_enable_consistency_check: true,
@@ -164,9 +167,9 @@ pub extern "C" fn rom_entry() -> ! {
             mci_mbox1_axi_users: mbox_axi_users,
             ..Default::default()
         };
-        mcu_rom_common::rom_start(rom_parameters);
+        caliptra_mcu_rom_common::rom_start(rom_parameters);
     } else if cfg!(feature = "test-fw-manifest-dot") {
-        mcu_rom_common::rom_start(RomParameters {
+        caliptra_mcu_rom_common::rom_start(RomParameters {
             dot_flash: Some(dot_flash),
             fw_manifest_dot_enabled: true,
             otp_enable_integrity_check: true,
@@ -193,9 +196,9 @@ pub extern "C" fn rom_entry() -> ! {
         )
         .unwrap_or_else(|_| fatal_error(EmulatorError::InitFlashPartitionDriver.into()));
 
-        romtime::println!("[mcu-rom] Booting from flash");
+        caliptra_mcu_romtime::println!("[mcu-rom] Booting from flash");
 
-        mcu_rom_common::rom_start(RomParameters {
+        caliptra_mcu_rom_common::rom_start(RomParameters {
             flash_partition_driver: Some(&mut flash_partition),
             dot_flash: Some(dot_flash),
             // Let the generic wire (bit 29 of mci_reg_generic_input_wires[1]) control flash boot
@@ -226,15 +229,18 @@ pub extern "C" fn rom_entry() -> ! {
 
         // Create MCI mbox0 transport for DOT recovery/override.
         let recovery_transport = {
-            let mci_base: romtime::StaticRef<registers_generated::mci::regs::Mci> = unsafe {
-                romtime::StaticRef::new(
-                    MCU_MEMORY_MAP.mci_offset as *const registers_generated::mci::regs::Mci,
+            let mci_base: caliptra_mcu_romtime::StaticRef<
+                caliptra_mcu_registers_generated::mci::regs::Mci,
+            > = unsafe {
+                caliptra_mcu_romtime::StaticRef::new(
+                    MCU_MEMORY_MAP.mci_offset
+                        as *const caliptra_mcu_registers_generated::mci::regs::Mci,
                 )
             };
-            mcu_rom_common::Mbox0RecoveryTransport::new(mci_base)
+            caliptra_mcu_rom_common::Mbox0RecoveryTransport::new(mci_base)
         };
 
-        mcu_rom_common::rom_start(RomParameters {
+        caliptra_mcu_rom_common::rom_start(RomParameters {
             dot_flash: Some(dot_flash),
             cptra_mbox_axi_users: mbox_axi_users,
             cptra_fuse_axi_user: axi_user0,
@@ -253,7 +259,7 @@ pub extern "C" fn rom_entry() -> ! {
                 None
             },
             i3c_services: if cfg!(feature = "test-i3c-services") {
-                Some(mcu_rom_common::I3cServicesModes::DOT_RECOVERY)
+                Some(caliptra_mcu_rom_common::I3cServicesModes::DOT_RECOVERY)
             } else {
                 None
             },
@@ -271,7 +277,7 @@ pub extern "C" fn rom_entry() -> ! {
         crate::flash::flash_test::test_rom_flash_access(&test_par);
     }
 
-    romtime::println!(
+    caliptra_mcu_romtime::println!(
         "[mcu-rom] Jumping to firmware at {}",
         HexWord(MCU_MEMORY_MAP.sram_offset as u32)
     );
@@ -316,7 +322,7 @@ enum EmulatorError {
     InvalidPartitionId,
 }
 
-impl From<EmulatorError> for mcu_error::McuError {
+impl From<EmulatorError> for caliptra_mcu_error::McuError {
     fn from(err: EmulatorError) -> Self {
         Self::new_vendor(err as u32)
     }

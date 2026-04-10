@@ -1,7 +1,7 @@
 // Licensed under the Apache-2.0 license
 
 use anyhow::{anyhow, bail, Result};
-use mcu_builder::{rom_build, PROJECT_ROOT, TARGET};
+use caliptra_mcu_builder::{rom_build, PROJECT_ROOT, TARGET};
 use std::process::Command;
 
 use crate::emulator_cbinding;
@@ -20,20 +20,20 @@ const EXCLUDED_PACKAGES: &[&str] = &[
     "mcu-rom-fpga",
     "mcu-runtime-emulator",
     "mcu-runtime-fpga",
-    "emulator",
+    "caliptra-mcu-emulator",
     "test-hello",
     "user-app",
     "example-app",
-    "libtock_unittest",
+    "caliptra-mcu-libtock_unittest",
     "syscalls_tests",
     // no_std firmware binaries targeting RISC-V; can't be run on the host
-    "mcu-test-fw-exception-handler",
-    "mcu-test-fw-hitless-update-flow",
-    "mcu-test-fw-lc-ctrl",
-    "mcu-test-fw-mailbox-responder",
-    "mcu-test-fw-otp-blank-check",
-    "mcu-test-fw-otp-scramble-check",
-    "mcu-test-fw-sw-digest-lock",
+    "caliptra-mcu-test-fw-exception-handler",
+    "caliptra-mcu-test-fw-hitless-update-flow",
+    "caliptra-mcu-test-fw-lc-ctrl",
+    "caliptra-mcu-test-fw-mailbox-responder",
+    "caliptra-mcu-test-fw-otp-blank-check",
+    "caliptra-mcu-test-fw-otp-scramble-check",
+    "caliptra-mcu-test-fw-sw-digest-lock",
 ];
 
 pub(crate) fn test(args: TestArgs) -> Result<()> {
@@ -188,7 +188,7 @@ fn test_hello() -> Result<()> {
     let args = get_emulator_args();
     let output = Command::new("cargo")
         .current_dir(&*PROJECT_ROOT)
-        .args(["run", "-p", "emulator", "--"])
+        .args(["run", "-p", "caliptra-mcu-emulator", "--"])
         .args(&args)
         .output()?;
 
@@ -236,11 +236,11 @@ pub(crate) fn test_panic_missing() -> Result<()> {
         .join("mcu-rom-emulator");
 
     // Check default build
-    rom_build(&mcu_builder::CaliptraBuildArgs::default())?;
+    rom_build(&caliptra_mcu_builder::CaliptraBuildArgs::default())?;
     check_no_panic(&rom_elf_path, "default")?;
 
     // Check test-flash-based-boot build
-    rom_build(&mcu_builder::CaliptraBuildArgs {
+    rom_build(&caliptra_mcu_builder::CaliptraBuildArgs {
         features: Some("test-flash-based-boot"),
         ..Default::default()
     })?;

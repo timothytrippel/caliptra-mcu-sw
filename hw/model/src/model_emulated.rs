@@ -26,23 +26,25 @@ use caliptra_emu_types::RvData;
 use caliptra_emu_types::RvSize;
 use caliptra_hw_model::Output;
 use caliptra_image_types::IMAGE_MANIFEST_BYTE_SIZE;
-use emulator_bmc::Bmc;
-use emulator_caliptra::start_caliptra;
-use emulator_caliptra::BytesOrPath;
-use emulator_caliptra::StartCaliptraArgs;
-use emulator_periph::DummyFlashCtrl;
-use emulator_periph::LcCtrl;
-use emulator_periph::McuRootBusOffsets;
-use emulator_periph::{I3c, I3cController, Mci, McuRootBus, McuRootBusArgs, Otp, OtpArgs};
-use emulator_registers_generated::axicdma::AxicdmaPeripheral;
-use emulator_registers_generated::primary_flash::PrimaryFlashPeripheral;
-use emulator_registers_generated::root_bus::AutoRootBus;
-use mcu_config::McuMemoryMap;
-use mcu_rom_common::LifecycleControllerState;
-use mcu_testing_common::i3c_socket_server::start_i3c_socket;
-use mcu_testing_common::{MCU_RUNNING, MCU_RUNTIME_STARTED};
-use registers_generated::fuses;
-use romtime::McuBootMilestones;
+use caliptra_mcu_config::McuMemoryMap;
+use caliptra_mcu_emulator_bmc::Bmc;
+use caliptra_mcu_emulator_caliptra::start_caliptra;
+use caliptra_mcu_emulator_caliptra::BytesOrPath;
+use caliptra_mcu_emulator_caliptra::StartCaliptraArgs;
+use caliptra_mcu_emulator_periph::DummyFlashCtrl;
+use caliptra_mcu_emulator_periph::LcCtrl;
+use caliptra_mcu_emulator_periph::McuRootBusOffsets;
+use caliptra_mcu_emulator_periph::{
+    I3c, I3cController, Mci, McuRootBus, McuRootBusArgs, Otp, OtpArgs,
+};
+use caliptra_mcu_emulator_registers_generated::axicdma::AxicdmaPeripheral;
+use caliptra_mcu_emulator_registers_generated::primary_flash::PrimaryFlashPeripheral;
+use caliptra_mcu_emulator_registers_generated::root_bus::AutoRootBus;
+use caliptra_mcu_registers_generated::fuses;
+use caliptra_mcu_rom_common::LifecycleControllerState;
+use caliptra_mcu_romtime::McuBootMilestones;
+use caliptra_mcu_testing_common::i3c_socket_server::start_i3c_socket;
+use caliptra_mcu_testing_common::{MCU_RUNNING, MCU_RUNTIME_STARTED};
 use semver::Version;
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -127,7 +129,7 @@ impl McuHwModel for ModelEmulated {
 
         let mcu_uart_output = Rc::new(RefCell::new(Vec::new()));
 
-        let mut straps = mcu_config::McuStraps::default();
+        let mut straps = caliptra_mcu_config::McuStraps::default();
         if params.active_i3c1 {
             straps.active_i3c = 1;
         }
@@ -207,10 +209,10 @@ impl McuHwModel for ModelEmulated {
         let lc_bytes = &otp_mem[fuses::LIFE_CYCLE_BYTE_OFFSET
             ..fuses::LIFE_CYCLE_BYTE_OFFSET + fuses::LIFE_CYCLE_BYTE_SIZE];
         let (lc_state_index, lc_transition_cnt) = if lc_bytes.iter().any(|&b| b != 0) {
-            let mem: [u8; mcu_otp_lifecycle::LIFECYCLE_MEM_SIZE] = lc_bytes
+            let mem: [u8; caliptra_mcu_otp_lifecycle::LIFECYCLE_MEM_SIZE] = lc_bytes
                 .try_into()
                 .expect("lifecycle partition size mismatch");
-            let (state_idx, count) = mcu_otp_lifecycle::lc_decode_memory(&mem)?;
+            let (state_idx, count) = caliptra_mcu_otp_lifecycle::lc_decode_memory(&mem)?;
             (state_idx as u32, count as u32)
         } else {
             (0, 0)
@@ -273,7 +275,7 @@ impl McuHwModel for ModelEmulated {
         );
         secondary_flash_controller.set_dma_rom_sram(rom_sram.clone());
 
-        let mut dma_ctrl = emulator_periph::AxiCDMA::new(
+        let mut dma_ctrl = caliptra_mcu_emulator_periph::AxiCDMA::new(
             &clock.clone(),
             pic.register_irq(McuRootBus::DMA_ERROR_IRQ),
             pic.register_irq(McuRootBus::DMA_EVENT_IRQ),
@@ -283,7 +285,7 @@ impl McuHwModel for ModelEmulated {
         )
         .unwrap();
 
-        emulator_periph::AxiCDMA::set_dma_ram(&mut dma_ctrl, dma_ram.clone());
+        caliptra_mcu_emulator_periph::AxiCDMA::set_dma_ram(&mut dma_ctrl, dma_ram.clone());
 
         // Map LC state to Caliptra device lifecycle per the Caliptra SS HW spec
         // (caliptra-ss docs/CaliptraSSHardwareSpecification.md, LCC state table).
@@ -353,7 +355,7 @@ impl McuHwModel for ModelEmulated {
             delegates,
             None,
             Some(Box::new(i3c)),
-            Some(Box::new(emulator_periph::StubI3c1::new())),
+            Some(Box::new(caliptra_mcu_emulator_periph::StubI3c1::new())),
             Some(Box::new(primary_flash_controller)),
             Some(Box::new(secondary_flash_controller)),
             Some(Box::new(mci)),
@@ -522,8 +524,8 @@ impl McuHwModel for ModelEmulated {
         }
         let events = self.events_from_caliptra.try_iter().collect::<Vec<_>>();
         self.collected_events_from_caliptra.extend(events);
-        if self.cycle_count() % mcu_testing_common::TICK_NOTIFY_TICKS == 0 {
-            mcu_testing_common::update_ticks(self.cycle_count());
+        if self.cycle_count() % caliptra_mcu_testing_common::TICK_NOTIFY_TICKS == 0 {
+            caliptra_mcu_testing_common::update_ticks(self.cycle_count());
         }
     }
 
@@ -720,13 +722,15 @@ mod test {
 
     #[test]
     fn test_new_unbooted() {
-        let mcu_rom = mcu_builder::rom_build(&mcu_builder::CaliptraBuildArgs::default())
-            .expect("Could not build MCU ROM");
-        let mcu_runtime =
-            &mcu_builder::runtime_build_with_apps(&mcu_builder::CaliptraBuildArgs::default())
-                .expect("Could not build MCU runtime");
+        let mcu_rom =
+            caliptra_mcu_builder::rom_build(&caliptra_mcu_builder::CaliptraBuildArgs::default())
+                .expect("Could not build MCU ROM");
+        let mcu_runtime = &caliptra_mcu_builder::runtime_build_with_apps(
+            &caliptra_mcu_builder::CaliptraBuildArgs::default(),
+        )
+        .expect("Could not build MCU runtime");
         let mut caliptra_builder =
-            mcu_builder::CaliptraBuilder::new(&mcu_builder::CaliptraBuildArgs {
+            caliptra_mcu_builder::CaliptraBuilder::new(&caliptra_mcu_builder::CaliptraBuildArgs {
                 mcu_firmware: Some(mcu_runtime.clone()),
                 ..Default::default()
             });

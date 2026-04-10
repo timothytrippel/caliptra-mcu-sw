@@ -23,30 +23,30 @@ use caliptra_emu_cpu::{Cpu, Pic, RvInstr, StepAction};
 use caliptra_emu_periph::CaliptraRootBus as CaliptraMainRootBus;
 use caliptra_emu_periph::MailboxRequester;
 use caliptra_image_types::FwVerificationPqcKeyType;
-use clap::{ArgAction, Parser};
-use clap_num::maybe_hex;
-use crossterm::event::{Event, KeyCode, KeyEvent};
-use emulator_bmc::Bmc;
-use emulator_caliptra::BytesOrPath;
-use emulator_caliptra::{start_caliptra, StartCaliptraArgs};
-use emulator_consts::{DEFAULT_CPU_ARGS, RAM_ORG, ROM_SIZE};
+use caliptra_mcu_emulator_bmc::Bmc;
+use caliptra_mcu_emulator_caliptra::BytesOrPath;
+use caliptra_mcu_emulator_caliptra::{start_caliptra, StartCaliptraArgs};
+use caliptra_mcu_emulator_consts::{DEFAULT_CPU_ARGS, RAM_ORG, ROM_SIZE};
 #[allow(unused_imports)]
-use emulator_periph::MciMailboxRequester;
-use emulator_periph::{
+use caliptra_mcu_emulator_periph::MciMailboxRequester;
+use caliptra_mcu_emulator_periph::{
     CaliptraToExtBus, DoeMboxPeriph, DummyDoeMbox, DummyFlashCtrl, I3c, I3cController, LcCtrl, Mci,
     McuRootBus, McuRootBusArgs, McuRootBusOffsets, Otp, OtpArgs,
 };
-use emulator_registers_generated::axicdma::AxicdmaPeripheral;
-use emulator_registers_generated::root_bus::{AutoRootBus, AutoRootBusOffsets};
-use mcu_testing_common::i3c_socket;
-use mcu_testing_common::i3c_socket_server::start_i3c_socket;
-use mcu_testing_common::mctp_transport::MctpTransport;
-use mcu_testing_common::mctp_util::base_protocol::LOCAL_TEST_ENDPOINT_EID;
-use mcu_testing_common::spdm_responder_validator::SpdmTestType;
-use mcu_testing_common::{MCU_RUNNING, MCU_RUNTIME_STARTED, MCU_TICKS, TICK_COND};
-use pldm_fw_pkg::FirmwareManifest;
-use pldm_ua::daemon::PldmDaemon;
-use pldm_ua::transport::{EndpointId, PldmTransport};
+use caliptra_mcu_emulator_registers_generated::axicdma::AxicdmaPeripheral;
+use caliptra_mcu_emulator_registers_generated::root_bus::{AutoRootBus, AutoRootBusOffsets};
+use caliptra_mcu_pldm_fw_pkg::FirmwareManifest;
+use caliptra_mcu_pldm_ua::daemon::PldmDaemon;
+use caliptra_mcu_pldm_ua::transport::{EndpointId, PldmTransport};
+use caliptra_mcu_testing_common::i3c_socket;
+use caliptra_mcu_testing_common::i3c_socket_server::start_i3c_socket;
+use caliptra_mcu_testing_common::mctp_transport::MctpTransport;
+use caliptra_mcu_testing_common::mctp_util::base_protocol::LOCAL_TEST_ENDPOINT_EID;
+use caliptra_mcu_testing_common::spdm_responder_validator::SpdmTestType;
+use caliptra_mcu_testing_common::{MCU_RUNNING, MCU_RUNTIME_STARTED, MCU_TICKS, TICK_COND};
+use clap::{ArgAction, Parser};
+use clap_num::maybe_hex;
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{self, IsTerminal, Read, Write};
@@ -337,7 +337,9 @@ impl Emulator {
         let is_flash_based_boot = cli.flash_based_boot || test_feature == "test-flash-based-boot";
 
         // Configure stub warnings based on CLI flag
-        emulator_registers_generated::stub_warnings::set_stub_warnings(cli.stub_warnings);
+        caliptra_mcu_emulator_registers_generated::stub_warnings::set_stub_warnings(
+            cli.stub_warnings,
+        );
 
         let args_rom = &cli.rom;
         let args_log_dir = &cli.log_dir.unwrap_or_else(|| PathBuf::from("/tmp"));
@@ -371,19 +373,20 @@ impl Emulator {
             .as_ref()
             .and_then(|p| Otp::read_lifecycle_from_file(p))
         {
-            let mem: [u8; mcu_otp_lifecycle::LIFECYCLE_MEM_SIZE] =
+            let mem: [u8; caliptra_mcu_otp_lifecycle::LIFECYCLE_MEM_SIZE] =
                 lc_bytes.try_into().map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::InvalidData,
                         "OTP lifecycle partition has wrong size",
                     )
                 })?;
-            let (state, count) = mcu_otp_lifecycle::lc_decode_memory(&mem).map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Failed to decode lifecycle from OTP fuses: {e}"),
-                )
-            })?;
+            let (state, count) =
+                caliptra_mcu_otp_lifecycle::lc_decode_memory(&mem).map_err(|e| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("Failed to decode lifecycle from OTP fuses: {e}"),
+                    )
+                })?;
             (state as u32, count as u32, None)
         } else {
             // No existing fuses — generate from CLI arg.
@@ -393,12 +396,13 @@ impl Emulator {
                 DeviceLifecycle::Production => (17u8, 1u8),   // Prod
                 _ => (17u8, 1u8),
             };
-            let fuse_data = mcu_otp_lifecycle::lc_generate_memory(idx, cnt).map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!("Failed to generate lifecycle fuses: {e}"),
-                )
-            })?;
+            let fuse_data =
+                caliptra_mcu_otp_lifecycle::lc_generate_memory(idx, cnt).map_err(|e| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("Failed to generate lifecycle fuses: {e}"),
+                    )
+                })?;
             (idx as u32, cnt as u32, Some(fuse_data.to_vec()))
         };
 
@@ -546,7 +550,7 @@ impl Emulator {
             auto_root_bus_offsets.lc_size = lc_size;
         }
 
-        let mut straps = mcu_config_emulator::EMULATOR_MCU_STRAPS;
+        let mut straps = caliptra_mcu_config_emulator::EMULATOR_MCU_STRAPS;
         if cli.active_i3c1 {
             straps.active_i3c = 1;
         }
@@ -676,7 +680,7 @@ impl Emulator {
             );
 
             let spdm_loopback_tests = tests::mctp_user_loopback::MctpUserAppTests::generate_tests(
-                mcu_testing_common::mctp_util::base_protocol::MctpMsgType::Caliptra as u8,
+                caliptra_mcu_testing_common::mctp_util::base_protocol::MctpMsgType::Caliptra as u8,
             );
 
             i3c_socket::run_tests(
@@ -692,7 +696,7 @@ impl Emulator {
                 exit(0);
             }
             let (test_rx, test_tx) = doe_mbox_fsm.start();
-            mcu_testing_common::spdm_responder_validator::doe::run_doe_spdm_conformance_test(
+            caliptra_mcu_testing_common::spdm_responder_validator::doe::run_doe_spdm_conformance_test(
                 test_tx,
                 test_rx,
                 SpdmTestType::SpdmResponderConformance,
@@ -705,7 +709,7 @@ impl Emulator {
                 exit(0);
             }
             let (test_rx, test_tx) = doe_mbox_fsm.start();
-            mcu_testing_common::spdm_responder_validator::doe::run_doe_spdm_conformance_test(
+            caliptra_mcu_testing_common::spdm_responder_validator::doe::run_doe_spdm_conformance_test(
                 test_tx,
                 test_rx,
                 SpdmTestType::SpdmTeeIoValidator,
@@ -817,7 +821,7 @@ impl Emulator {
             None,
         );
 
-        let mut dma_ctrl = emulator_periph::AxiCDMA::new(
+        let mut dma_ctrl = caliptra_mcu_emulator_periph::AxiCDMA::new(
             &clock.clone(),
             pic.register_irq(McuRootBus::DMA_ERROR_IRQ),
             pic.register_irq(McuRootBus::DMA_EVENT_IRQ),
@@ -827,7 +831,7 @@ impl Emulator {
         )
         .unwrap();
 
-        emulator_periph::AxiCDMA::set_dma_ram(&mut dma_ctrl, dma_ram.clone());
+        caliptra_mcu_emulator_periph::AxiCDMA::set_dma_ram(&mut dma_ctrl, dma_ram.clone());
         let mci_irq = root_bus.mci_irq.clone();
 
         let mcu_mailbox0 = root_bus.mcu_mailbox0.clone();
@@ -904,7 +908,7 @@ impl Emulator {
             delegates,
             Some(auto_root_bus_offsets),
             Some(Box::new(i3c)),
-            Some(Box::new(emulator_periph::StubI3c1::new())),
+            Some(Box::new(caliptra_mcu_emulator_periph::StubI3c1::new())),
             Some(Box::new(primary_flash_controller)),
             Some(Box::new(secondary_flash_controller)),
             Some(Box::new(mci)),
@@ -1001,14 +1005,14 @@ impl Emulator {
             || test_feature == "test-mcu-mbox-usermode"
             || test_feature == "test-mcu-mbox-cmds"
         {
-            use emulator_mcu_mbox::mcu_mailbox_transport::McuMailboxTransport;
+            use caliptra_mcu_emulator_mcu_mbox::mcu_mailbox_transport::McuMailboxTransport;
             let transport = McuMailboxTransport::new(ext_mcu_mailbox0.clone());
             let test = crate::tests::emulator_mcu_mailbox_test::RequestResponseTest::new(transport);
             test.run(test_feature.to_string());
         }
 
         if test_feature == "test-caliptra-util-host-validator" {
-            use emulator_mcu_mbox::mcu_mailbox_transport::McuMailboxTransport;
+            use caliptra_mcu_emulator_mcu_mbox::mcu_mailbox_transport::McuMailboxTransport;
             let transport = McuMailboxTransport::new(ext_mcu_mailbox0.clone());
             crate::tests::caliptra_util_host_validator::run_mbox_responder(transport);
             crate::tests::caliptra_util_host_validator::run_caliptra_util_host_validator();
@@ -1025,11 +1029,11 @@ impl Emulator {
             );
 
             // Parse PLDM Firmware Package
-            let pldm_fw_pkg = FirmwareManifest::decode_firmware_package(
+            let caliptra_mcu_pldm_fw_pkg = FirmwareManifest::decode_firmware_package(
                 &pldm_fw_pkg_path.to_str().unwrap().to_string(),
                 None,
             );
-            if pldm_fw_pkg.is_err() {
+            if caliptra_mcu_pldm_fw_pkg.is_err() {
                 println!("Failed to parse PLDM firmware package");
                 exit(-1);
             }
@@ -1045,20 +1049,21 @@ impl Emulator {
                 // we need to set the update state machine to exit on error
                 let _ = PldmDaemon::run(
                     pldm_socket,
-                    pldm_ua::daemon::Options {
-                        pldm_fw_pkg: Some(pldm_fw_pkg.unwrap()),
-                        discovery_sm_actions: pldm_ua::discovery_sm::DefaultActions {},
-                        update_sm_actions: pldm_ua::update_sm::DefaultActionsExitOnError {},
+                    caliptra_mcu_pldm_ua::daemon::Options {
+                        caliptra_mcu_pldm_fw_pkg: Some(caliptra_mcu_pldm_fw_pkg.unwrap()),
+                        discovery_sm_actions: caliptra_mcu_pldm_ua::discovery_sm::DefaultActions {},
+                        update_sm_actions:
+                            caliptra_mcu_pldm_ua::update_sm::DefaultActionsExitOnError {},
                         fd_tid: 0x01,
                     },
                 );
             } else {
                 let _ = PldmDaemon::run(
                     pldm_socket,
-                    pldm_ua::daemon::Options {
-                        pldm_fw_pkg: Some(pldm_fw_pkg.unwrap()),
-                        discovery_sm_actions: pldm_ua::discovery_sm::DefaultActions {},
-                        update_sm_actions: pldm_ua::update_sm::DefaultActions {},
+                    caliptra_mcu_pldm_ua::daemon::Options {
+                        caliptra_mcu_pldm_fw_pkg: Some(caliptra_mcu_pldm_fw_pkg.unwrap()),
+                        discovery_sm_actions: caliptra_mcu_pldm_ua::discovery_sm::DefaultActions {},
+                        update_sm_actions: caliptra_mcu_pldm_ua::update_sm::DefaultActions {},
                         fd_tid: 0x01,
                     },
                 );

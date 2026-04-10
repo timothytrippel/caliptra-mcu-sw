@@ -19,37 +19,37 @@ use core::fmt::Write;
 #[cfg(target_arch = "riscv32")]
 core::arch::global_asm!(include_str!("start.s"));
 
-use mcu_config::{McuMemoryMap, McuStraps};
-use mcu_rom_common::flash::flash_partition::FlashPartition;
-use mcu_rom_common::{
+use caliptra_mcu_config::{McuMemoryMap, McuStraps};
+use caliptra_mcu_rom_common::flash::flash_partition::FlashPartition;
+use caliptra_mcu_rom_common::{
     LifecycleControllerState, LifecycleHashedToken, LifecycleToken, RomParameters,
 };
 
 // re-export these so the common ROM and runtime can use them
 #[no_mangle]
 #[used]
-pub static MCU_MEMORY_MAP: McuMemoryMap = mcu_config_fpga::FPGA_MEMORY_MAP;
+pub static MCU_MEMORY_MAP: McuMemoryMap = caliptra_mcu_config_fpga::FPGA_MEMORY_MAP;
 
 #[no_mangle]
 #[used]
-pub static MCU_STRAPS: McuStraps = mcu_config_fpga::FPGA_MCU_STRAPS;
+pub static MCU_STRAPS: McuStraps = caliptra_mcu_config_fpga::FPGA_MCU_STRAPS;
 
 pub extern "C" fn rom_entry() -> ! {
     print_to_console("FPGA MCU ROM\n");
     unsafe {
         #[allow(static_mut_refs)]
-        romtime::set_printer(&mut FPGA_WRITER);
+        caliptra_mcu_romtime::set_printer(&mut FPGA_WRITER);
     }
     unsafe {
         #[allow(static_mut_refs)]
-        mcu_rom_common::set_fatal_error_handler(&mut FATAL_ERROR_HANDLER);
+        caliptra_mcu_rom_common::set_fatal_error_handler(&mut FATAL_ERROR_HANDLER);
     }
     unsafe {
         #[allow(static_mut_refs)]
-        romtime::set_exiter(&mut EXITER);
+        caliptra_mcu_romtime::set_exiter(&mut EXITER);
     }
 
-    romtime::println!("[mcu-rom] Starting FPGA MCU ROM");
+    caliptra_mcu_romtime::println!("[mcu-rom] Starting FPGA MCU ROM");
 
     // Initialize the primary flash controller
     let primary_flash_ctrl = FpgaFlashCtrl::initialize_flash_ctrl(PRIMARY_FLASH_CTRL_BASE);
@@ -94,7 +94,7 @@ pub extern "C" fn rom_entry() -> ! {
 
     // For now, we use the same tokens for all lifecycle transitions.
     let burn_lifecycle_tokens = if burn_tokens {
-        Some(mcu_rom_common::LifecycleHashedTokens {
+        Some(caliptra_mcu_rom_common::LifecycleHashedTokens {
             test_unlock: [burn_hashed_token; 7],
             manuf: burn_hashed_token,
             manuf_to_prod: burn_hashed_token,
@@ -125,7 +125,7 @@ pub extern "C" fn rom_entry() -> ! {
     let axi_user1 = 2;
     let mbox_axi_users = [axi_user0, axi_user1, 0, 0, 0];
 
-    mcu_rom_common::rom_start(RomParameters {
+    caliptra_mcu_rom_common::rom_start(RomParameters {
         lifecycle_transition,
         burn_lifecycle_tokens,
         program_field_entropy: [program_field_entropy; 4],
@@ -139,7 +139,7 @@ pub extern "C" fn rom_entry() -> ! {
         mci_mbox0_axi_users: mbox_axi_users,
         mci_mbox1_axi_users: mbox_axi_users,
         i3c_services: if cfg!(feature = "test-i3c-services") {
-            Some(mcu_rom_common::I3cServicesModes::DOT_RECOVERY)
+            Some(caliptra_mcu_rom_common::I3cServicesModes::DOT_RECOVERY)
         } else {
             None
         },
@@ -148,7 +148,7 @@ pub extern "C" fn rom_entry() -> ! {
     });
 
     let addr = MCU_MEMORY_MAP.sram_offset;
-    romtime::println!("[mcu-rom] Jumping to firmware at {:08x}", addr);
+    caliptra_mcu_romtime::println!("[mcu-rom] Jumping to firmware at {:08x}", addr);
     exit_rom(addr);
 }
 

@@ -9,7 +9,7 @@ use crate::utils::manifest_file;
 use crate::{CaliptraBuildArgs, PROJECT_ROOT};
 use caliptra_image_crypto::RustCrypto as Crypto;
 use caliptra_image_gen::{from_hw_format, ImageGeneratorCrypto};
-use mcu_firmware_bundler::args::{BuildArgs, Commands, Common, LdArgs};
+use caliptra_mcu_firmware_bundler::args::{BuildArgs, Commands, Common, LdArgs};
 
 pub fn rom_build(args: &CaliptraBuildArgs) -> Result<PathBuf> {
     let platform = args.platform;
@@ -41,7 +41,7 @@ pub fn rom_build(args: &CaliptraBuildArgs) -> Result<PathBuf> {
         target: Some(target_name.clone()),
     };
 
-    mcu_firmware_bundler::execute(build_cmd)?;
+    caliptra_mcu_firmware_bundler::execute(build_cmd)?;
     let bundler_output = rom_binary.with_file_name(format!("{target_name}.bin"));
     if bundler_output != rom_binary {
         std::fs::rename(bundler_output, &rom_binary)?;
@@ -66,8 +66,8 @@ pub fn append_rom_digest(binary: &PathBuf, rom_size: usize) -> Result<()> {
 
 pub fn rom_size_for_platform(platform: &str) -> usize {
     match platform {
-        "fpga" => mcu_config_fpga::FPGA_MEMORY_MAP.rom_size as usize,
-        _ => mcu_config_emulator::EMULATOR_MEMORY_MAP.rom_size as usize,
+        "fpga" => caliptra_mcu_config_fpga::FPGA_MEMORY_MAP.rom_size as usize,
+        _ => caliptra_mcu_config_emulator::EMULATOR_MEMORY_MAP.rom_size as usize,
     }
 }
 
@@ -120,7 +120,7 @@ pub fn test_rom_build(args: &CaliptraBuildArgs) -> Result<String> {
         target: Some(fwid.crate_name.to_string()),
     };
 
-    mcu_firmware_bundler::execute(build_cmd)?;
+    caliptra_mcu_firmware_bundler::execute(build_cmd)?;
 
     // The firmware bundler outputs <crate_name>.bin; rename to our expected convention.
     let bundler_output = rom_binary.with_file_name(format!("{}.bin", fwid.crate_name));
