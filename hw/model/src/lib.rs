@@ -226,6 +226,9 @@ pub struct InitParams<'a> {
     pub flash_boot: bool,
 
     pub active_i3c1: bool,
+
+    /// Initial contents of the vendor test partition in OTP.
+    pub vendor_test_partition: Option<Vec<u8>>,
 }
 
 impl InitParams<'_> {
@@ -297,6 +300,7 @@ impl Default for InitParams<'_> {
             caliptra_soc_axi_user: None,
             flash_boot: false,
             active_i3c1: false,
+            vendor_test_partition: None,
         }
     }
 }
