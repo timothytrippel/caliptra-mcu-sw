@@ -38,7 +38,7 @@ mod test {
     use caliptra_image_types::FwVerificationPqcKeyType;
     use caliptra_mcu_builder::flash_image::build_flash_image_bytes;
     use caliptra_mcu_builder::{
-        CaliptraBuilder, EmulatorBinaries, FirmwareBinaries, ImageCfg, TARGET,
+        target_dir, CaliptraBuilder, EmulatorBinaries, FirmwareBinaries, ImageCfg, TARGET,
     };
     use caliptra_mcu_hw_model::{DefaultHwModel, Fuses, InitParams, McuHwModel};
     use caliptra_mcu_testing_common::{DeviceLifecycle, MCU_RUNNING};
@@ -122,11 +122,7 @@ mod test {
     });
 
     fn target_binary(name: &str) -> PathBuf {
-        PROJECT_ROOT
-            .join("target")
-            .join(TARGET)
-            .join("release")
-            .join(name)
+        target_dir().join(TARGET).join("release").join(name)
     }
 
     // Get ROM from prebuilt or compile
@@ -1037,16 +1033,16 @@ mod test {
             "test-mcu-svn-lt-fuse"
         };
         let name = format!("runtime-{}.bin", feature);
-        let test_runtime = target_binary(&name);
-
         println!("Compiling test firmware {}", &feature);
-        caliptra_mcu_builder::runtime_build_with_apps(&caliptra_mcu_builder::CaliptraBuildArgs {
-            features: Some(feature),
-            output_name: Some(name),
-            example_app: true,
-            svn: Some(image_svn),
-            ..Default::default()
-        })
+        let test_runtime = caliptra_mcu_builder::runtime_build_with_apps(
+            &caliptra_mcu_builder::CaliptraBuildArgs {
+                features: Some(feature),
+                output_name: Some(name),
+                example_app: true,
+                svn: Some(image_svn),
+                ..Default::default()
+            },
+        )
         .expect("Runtime build failed");
         assert!(test_runtime.exists());
 
