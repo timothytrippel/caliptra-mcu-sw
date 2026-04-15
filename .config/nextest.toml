@@ -18,8 +18,7 @@ slow-timeout = { period = "30s", terminate-after = 30 }
 default-filter = """
 !(package(caliptra-mcu-tests-integration) and test(test_bare_metal::test::test_bare_metal_runtime_boot)
 | package(caliptra-mcu-tests-integration) and test(test::test_mcu_mbox_driver)
-| package(caliptra-mcu-tests-integration) and test(test::test_mcu_mbox_soc_requester_loopback)
-| package(caliptra-mcu-hw-model) and test(model_emulated::test::test_new_unbooted))
+| package(caliptra-mcu-tests-integration) and test(test::test_mcu_mbox_soc_requester_loopback))
 """
 
 [profile.nightly-emulator.junit]
