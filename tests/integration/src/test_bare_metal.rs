@@ -11,7 +11,16 @@ mod test {
         let lock = TEST_LOCK.lock().unwrap();
 
         let rom_path = ROM.clone();
-        let runtime_path = compile_bare_metal_runtime();
+        let runtime_path = if let Ok(binaries) = caliptra_mcu_builder::FirmwareBinaries::from_env()
+        {
+            let path = std::env::temp_dir().join("mcu_bare_metal_runtime_prebuilt.bin");
+            if !path.exists() {
+                std::fs::write(&path, &binaries.mcu_bare_metal_runtime).unwrap();
+            }
+            path
+        } else {
+            compile_bare_metal_runtime()
+        };
 
         let i3c_port = PortPicker::new().random(true).pick().unwrap().to_string();
 

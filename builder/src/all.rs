@@ -182,6 +182,7 @@ pub struct FirmwareBinaries {
     pub caliptra_fw: Vec<u8>,
     pub mcu_rom: Vec<u8>,
     pub mcu_runtime: Vec<u8>,
+    pub mcu_bare_metal_runtime: Vec<u8>,
     pub soc_manifest: Vec<u8>,
     pub test_roms: Vec<(String, Vec<u8>)>,
     pub caliptra_test_roms: Vec<(String, Vec<u8>)>,
@@ -198,6 +199,7 @@ impl FirmwareBinaries {
     const CALIPTRA_FW_NAME: &'static str = "caliptra_fw.bin";
     const MCU_ROM_NAME: &'static str = "mcu_rom.bin";
     const MCU_RUNTIME_NAME: &'static str = "mcu_runtime.bin";
+    const MCU_BARE_METAL_RUNTIME_NAME: &'static str = "mcu_bare_metal_runtime.bin";
     const SOC_MANIFEST_NAME: &'static str = "soc_manifest.bin";
     const FLASH_IMAGE_NAME: &'static str = "flash_image.bin";
     const PLDM_FW_PKG_NAME: &'static str = "pldm_fw_pkg.bin";
@@ -237,6 +239,7 @@ impl FirmwareBinaries {
                 Self::CALIPTRA_FW_NAME => binaries.caliptra_fw = data,
                 Self::MCU_ROM_NAME => binaries.mcu_rom = data,
                 Self::MCU_RUNTIME_NAME => binaries.mcu_runtime = data,
+                Self::MCU_BARE_METAL_RUNTIME_NAME => binaries.mcu_bare_metal_runtime = data,
                 Self::SOC_MANIFEST_NAME => binaries.soc_manifest = data,
                 name if name.contains("mcu-test-soc-manifest") => {
                     binaries.test_soc_manifests.push((name.to_string(), data));
@@ -567,6 +570,14 @@ pub fn all_build(args: AllBuildArgs) -> Result<()> {
         ..Default::default()
     })?;
 
+    // Only build the bare-metal runtime for the emulator platform, as it
+    // is currently only configured and supported for the emulator.
+    let mcu_bare_metal_runtime = if platform == "emulator" {
+        Some(crate::bare_metal_build()?)
+    } else {
+        None
+    };
+
     let mcu_image_cfg = get_image_cfg_feature(&mcu_cfgs.clone().unwrap_or_default(), "none");
     let mut caliptra_builder = crate::CaliptraBuilder::new(&CaliptraBuildArgs {
         fpga: platform == "fpga",
@@ -815,6 +826,14 @@ pub fn all_build(args: AllBuildArgs) -> Result<()> {
         &mut zip,
         options,
     )?;
+    if let Some(bare_metal) = mcu_bare_metal_runtime {
+        add_to_zip(
+            &bare_metal,
+            FirmwareBinaries::MCU_BARE_METAL_RUNTIME_NAME,
+            &mut zip,
+            options,
+        )?;
+    }
     add_to_zip(
         &soc_manifest,
         FirmwareBinaries::SOC_MANIFEST_NAME,
