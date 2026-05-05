@@ -843,6 +843,13 @@ impl BootFlow for ColdBoot {
                 ..Default::default()
             },
         );
+
+        // Create handoff data
+        romtime::handoff::HandoffData::write(romtime::handoff::HandoffArgs {
+            #[cfg(feature = "ocp-lock")]
+            hek_state: _fuse_state.hek_state.unwrap_or_default(),
+        });
+
         mci.set_flow_checkpoint(McuRomBootStatus::FusesPopulatedToCaliptra.into());
 
         // Configure MCU mailbox AXI users before locking
