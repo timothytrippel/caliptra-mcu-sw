@@ -234,6 +234,9 @@ impl Soc {
             .unwrap_or_else(|_| fatal_error(McuError::ROM_PK_HASH_SELECTION_FAILED));
         romtime::println!("[mcu-fuse-write] Selected vendor PK slot {}", pk_hash_idx);
 
+        #[cfg(feature = "stable-owner-key")]
+        crate::stable_owner_key::enable_owner_key_strap(self.registers);
+
         // PQC Key Type.
         let pqc_type = otp
             .read_pqc_key_type(pk_hash_idx)
@@ -321,7 +324,11 @@ impl Soc {
         // Owner PK Hash is written separately after Device Ownership Transfer flow.
         // See set_owner_pk_hash() method.
 
-        // TODO: load HEK Seed CSRs.
+        // Stable owner key builds forward HEK for derivation here.
+        // OCP LOCK keeps its HEK selection and handoff metadata in the OCP path below.
+        #[cfg(feature = "stable-owner-key")]
+        crate::stable_owner_key::set_hek_fuses(self.registers, otp);
+
         // SoC Stepping ID (only 16-bits are relevant).
         let word = otp
             .read_u32_at(fuses::OTP_CPTRA_CORE_SOC_STEPPING_ID.byte_offset)

@@ -23,6 +23,7 @@ mod test_i3c_simple;
 mod test_mctp_capsule_loopback;
 mod test_mctp_vdm_cmds;
 mod test_mcu_mbox;
+mod test_owner_stable_key;
 mod test_pldm_fw_update;
 mod test_soc_boot;
 mod test_usb_ocp_recovery;
@@ -295,7 +296,11 @@ mod test {
         }
 
         if let Some(rom_feature) = params.rom_feature {
-            test_binaries.mcu_rom = binaries.test_feature_rom(rom_feature);
+            test_binaries.mcu_rom = binaries
+                .test_feature_rom(rom_feature)
+                .unwrap_or_else(|err| {
+                    panic!("Failed to get MCU ROM for feature {rom_feature}: {err}")
+                });
         }
 
         // check for prebuilt network ROM with feature
