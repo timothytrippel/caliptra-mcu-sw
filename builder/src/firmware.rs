@@ -5,55 +5,58 @@ use caliptra_builder::FwId;
 pub mod hw_model_tests {
     use super::*;
 
-    const BASE_FWID: FwId = FwId {
-        crate_name: "mcu-hw-model-test-fw",
-        bin_name: "",
+    pub const MAILBOX_RESPONDER: FwId = FwId {
+        crate_name: "mcu-test-fw-mailbox-responder",
+        bin_name: "mcu-test-fw-mailbox-responder",
         features: &["emu"],
     };
 
-    pub const MAILBOX_RESPONDER: FwId = FwId {
-        bin_name: "mailbox_responder",
-        ..BASE_FWID
-    };
-
     pub const HITLESS_UPDATE_FLOW: FwId = FwId {
-        bin_name: "hitless_update_flow",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-hitless-update-flow",
+        bin_name: "mcu-test-fw-hitless-update-flow",
+        features: &["emu"],
     };
 
     pub const AXI_BYPASS: FwId = FwId {
-        bin_name: "axi_bypass",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-axi-bypass",
+        bin_name: "mcu-test-fw-axi-bypass",
+        features: &["emu"],
     };
 
     pub const EXCEPTION_HANDLER: FwId = FwId {
-        bin_name: "exception_handler",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-exception-handler",
+        bin_name: "mcu-test-fw-exception-handler",
+        features: &["emu"],
     };
 
     pub const USB_RESPONDER: FwId = FwId {
-        bin_name: "usb_responder",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-usb-responder",
+        bin_name: "mcu-test-fw-usb-responder",
+        features: &["emu"],
     };
 
     pub const USB_OCP_RECOVERY: FwId = FwId {
-        bin_name: "usb_ocp_recovery",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-usb-ocp-recovery",
+        bin_name: "mcu-test-fw-usb-ocp-recovery",
+        features: &["emu"],
     };
 
     pub const SW_DIGEST_LOCK: FwId = FwId {
-        bin_name: "sw_digest_lock",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-sw-digest-lock",
+        bin_name: "mcu-test-fw-sw-digest-lock",
+        features: &["emu"],
     };
 
     pub const OTP_BLANK_CHECK: FwId = FwId {
-        bin_name: "otp_blank_check",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-otp-blank-check",
+        bin_name: "mcu-test-fw-otp-blank-check",
+        features: &["emu"],
     };
 
     pub const LC_CTRL: FwId = FwId {
-        bin_name: "lc_ctrl",
-        ..BASE_FWID
+        crate_name: "mcu-test-fw-lc-ctrl",
+        bin_name: "mcu-test-fw-lc-ctrl",
+        features: &["emu"],
     };
 }
 

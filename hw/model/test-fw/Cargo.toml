@@ -47,23 +47,8 @@ path = "mailbox_responder.rs"
 required-features = ["riscv"]
 
 [[bin]]
-name = "axi_bypass"
-path = "axi_bypass.rs"
-required-features = ["riscv"]
-
-[[bin]]
 name = "exception_handler"
 path = "exception_handler.rs"
-required-features = ["riscv"]
-
-[[bin]]
-name = "usb_responder"
-path = "usb_responder.rs"
-required-features = ["riscv"]
-
-[[bin]]
-name = "usb_ocp_recovery"
-path = "usb_ocp_recovery.rs"
 required-features = ["riscv"]
 
 [[bin]]
@@ -71,12 +56,3 @@ name = "sw_digest_lock"
 path = "sw_digest_lock.rs"
 required-features = ["riscv"]
 
-[[bin]]
-name = "otp_blank_check"
-path = "otp_blank_check.rs"
-required-features = ["riscv"]
-
-[[bin]]
-name = "lc_ctrl"
-path = "lc_ctrl.rs"
-required-features = ["riscv"]
