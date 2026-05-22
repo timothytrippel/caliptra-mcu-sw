@@ -837,13 +837,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "caliptra-mcu-bare-metal-runtime"
+name = "caliptra-mcu-bare-metal"
 version = "0.1.0"
 dependencies = [
- "caliptra-drivers",
- "caliptra-mcu-romtime",
+ "caliptra-mcu-bare-metal-io",
  "rv32i",
 ]
+
+[[package]]
+name = "caliptra-mcu-bare-metal-io"
+version = "0.1.0"
 
 [[package]]
 name = "caliptra-mcu-builder"

@@ -1,14 +1,13 @@
 # Licensed under the Apache-2.0 license
 
 [package]
-name = "caliptra-mcu-bare-metal-runtime"
+name = "caliptra-mcu-bare-metal"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-caliptra-drivers.workspace = true
-caliptra-mcu-romtime.workspace = true
+caliptra-mcu-bare-metal-io = { workspace = true }
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 rv32i.workspace = true
@@ -18,3 +17,7 @@ panic = "abort"
 lto = true
 opt-level = "z"
 codegen-units = 1
+
+[features]
+default = []
+fpga = ["caliptra-mcu-bare-metal-io/fpga"]

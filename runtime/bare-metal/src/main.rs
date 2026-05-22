@@ -6,38 +6,22 @@
 #![no_main]
 
 #[cfg(target_arch = "riscv32")]
-use core::arch::global_asm;
+mod riscv {
+    use caliptra_mcu_bare_metal_io::{exit, print};
+    use core::arch::global_asm;
 
-#[cfg(target_arch = "riscv32")]
-use core::panic::PanicInfo;
+    global_asm!(include_str!("start.S"));
 
-#[cfg(target_arch = "riscv32")]
-global_asm!(include_str!("start.S"));
-
-#[cfg(target_arch = "riscv32")]
-const MSG: &[u8; 31] = b"Hello from Bare Metal Runtime!\n";
-
-#[cfg(target_arch = "riscv32")]
-#[no_mangle]
-pub extern "C" fn main() {
-    // Write the message to the console.
-    const UART0: *mut u8 = 0x1000_1041 as *mut u8;
-    unsafe {
-        for byte in MSG {
-            core::ptr::write_volatile(UART0, *byte);
-        }
-        core::ptr::write_volatile(UART0, b'\n');
+    #[no_mangle]
+    pub extern "C" fn main() {
+        print("Hello from Bare Metal Runtime!\n");
+        exit(0);
     }
-    // Exit the emulator.
-    unsafe {
-        core::ptr::write_volatile(0x1000_2000 as *mut u32, 0);
-    }
-}
 
-#[cfg(target_arch = "riscv32")]
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    #[panic_handler]
+    fn panic(_info: &core::panic::PanicInfo) -> ! {
+        loop {}
+    }
 }
 
 // Dummy main for non-RISC-V targets.
