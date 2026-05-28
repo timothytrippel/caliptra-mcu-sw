@@ -45,7 +45,6 @@ struct MctpPldmSocketData {
 impl PldmSocket for MctpPldmSocket {
     fn send(&self, payload: &[u8]) -> Result<(), PldmTransportError> {
         let mut mctp_util = MctpUtil::new();
-        mctp_util.set_pkt_payload_size(MAX_PLDM_PAYLOAD_SIZE);
         let mut mctp_common_header = MctpCommonHeader(0);
         mctp_common_header.set_ic(0);
         mctp_common_header.set_msg_type(MCTP_PLDM_MSG_TYPE);
@@ -75,11 +74,12 @@ impl PldmSocket for MctpPldmSocket {
             context.state = MctpPldmSocketState::FirstResponse;
             cvar.notify_all();
         } else {
+            let is_request = payload[0] & 0x80 == 0x80;
             let mut stream = self
                 .tx_stream
                 .try_clone()
                 .map_err(|_| PldmTransportError::Disconnected)?;
-            if payload[0] & 0x80 == 0x80 {
+            if is_request {
                 mctp_util.send_request(
                     self.msg_tag,
                     mctp_payload.as_mut_slice(),
@@ -134,7 +134,6 @@ impl PldmSocket for MctpPldmSocket {
         // We are in duplex mode, so we can receive packets
         // without waiting for the first response
         let mut mctp_util = MctpUtil::new();
-        mctp_util.set_pkt_payload_size(MAX_PLDM_PAYLOAD_SIZE);
         let mut rx = self.rx_stream.lock().unwrap();
         let raw_pkt: Vec<u8> = mctp_util.receive(&mut rx, self.target_addr, None);
         if raw_pkt.is_empty() {
