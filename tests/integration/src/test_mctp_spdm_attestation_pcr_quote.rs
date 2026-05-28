@@ -60,6 +60,9 @@ mod test {
             exit(-1);
         });
 
+        // Worker threads use spawn_with_emulator_state so they inherit
+        // ModelEmulated's per-instance state and can call wait_for_runtime_start
+        // / is_emulator_running without panicking.
         spawn_with_emulator_state(move || {
             wait_for_runtime_start();
 
