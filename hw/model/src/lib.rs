@@ -975,7 +975,7 @@ fn reg_access_test() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use caliptra_mcu_builder::firmware;
+    use caliptra_mcu_builder::{firmware, CaliptraBuildArgs};
 
     fn platform() -> &'static str {
         if cfg!(feature = "fpga_realtime") {
@@ -990,11 +990,11 @@ mod tests {
         let mcu_rom = if let Ok(binaries) = caliptra_mcu_builder::FirmwareBinaries::from_env() {
             binaries.test_rom(&firmware::hw_model_tests::MAILBOX_RESPONDER)?
         } else {
-            let rom_file = caliptra_mcu_builder::test_rom_build(
-                Some(platform()),
-                &firmware::hw_model_tests::MAILBOX_RESPONDER,
-                None,
-            )?;
+            let rom_file = caliptra_mcu_builder::test_rom_build(&CaliptraBuildArgs {
+                platform: Some(platform()),
+                fwid: Some(&firmware::hw_model_tests::MAILBOX_RESPONDER),
+                ..Default::default()
+            })?;
             std::fs::read(&rom_file)?
         };
 
@@ -1057,11 +1057,11 @@ mod tests {
         let mcu_rom = if let Ok(binaries) = caliptra_mcu_builder::FirmwareBinaries::from_env() {
             binaries.test_rom(&firmware::hw_model_tests::USB_RESPONDER)?
         } else {
-            let rom_file = caliptra_mcu_builder::test_rom_build(
-                Some(platform()),
-                &firmware::hw_model_tests::USB_RESPONDER,
-                None,
-            )?;
+            let rom_file = caliptra_mcu_builder::test_rom_build(&CaliptraBuildArgs {
+                platform: Some(platform()),
+                fwid: Some(&firmware::hw_model_tests::USB_RESPONDER),
+                ..Default::default()
+            })?;
             std::fs::read(&rom_file)?
         };
 
@@ -1130,11 +1130,11 @@ mod tests {
         let mcu_rom = if let Ok(binaries) = caliptra_mcu_builder::FirmwareBinaries::from_env() {
             binaries.test_rom(&firmware::hw_model_tests::USB_OCP_RECOVERY)?
         } else {
-            let rom_file = caliptra_mcu_builder::test_rom_build(
-                Some(platform()),
-                &firmware::hw_model_tests::USB_OCP_RECOVERY,
-                None,
-            )?;
+            let rom_file = caliptra_mcu_builder::test_rom_build(&CaliptraBuildArgs {
+                platform: Some(platform()),
+                fwid: Some(&firmware::hw_model_tests::USB_OCP_RECOVERY),
+                ..Default::default()
+            })?;
             std::fs::read(&rom_file)?
         };
 
