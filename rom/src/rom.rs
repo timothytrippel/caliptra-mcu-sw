@@ -25,6 +25,9 @@ use crate::ImageVerifier;
 use crate::RomEnv;
 use crate::WarmBoot;
 use caliptra_api::mailbox::CmStableKeyType;
+#[cfg(all(not(test), feature = "cfi"))]
+use caliptra_cfi_derive::{cfi_impl_fn, cfi_mod_fn};
+use caliptra_cfi_lib::{cfi_assert_eq, cfi_launder, CfiCounter, CfiError};
 use caliptra_mcu_error::McuError;
 use caliptra_mcu_registers_generated::fuses;
 use caliptra_mcu_registers_generated::mci;
@@ -54,6 +57,11 @@ pub const MCU_SRAM_DEFAULT_PROTECTED_REGION_BLOCKS: u32 = 8; // 32 kB / 4 kB chu
 pub trait BootFlow {
     /// Execute the boot flow
     fn run(env: &mut RomEnv, params: RomParameters) -> !;
+}
+
+/// An entropy source provided by the integrator, used for initializing the CFI counters.
+pub trait CfiEntropySource {
+    fn entropy(&mut self) -> Result<(u32, u32, u32, u32), CfiError>;
 }
 
 extern "C" {
@@ -208,6 +216,7 @@ impl Soc {
     }
 
     #[inline(never)]
+    #[cfg_attr(all(not(test), feature = "cfi"), cfi_impl_fn)]
     pub fn populate_fuses(
         &self,
         otp: &Otp,
@@ -243,12 +252,14 @@ impl Soc {
         let pk_hash_idx = policy
             .select_key(otp)
             .unwrap_or_else(|_| fatal_error(McuError::ROM_PK_HASH_SELECTION_FAILED));
+        let pk_hash_idx_expected = cfi_launder(pk_hash_idx);
         caliptra_mcu_romtime::println!("[mcu-fuse-write] Selected vendor PK slot {}", pk_hash_idx);
 
         #[cfg(feature = "stable-owner-key")]
         crate::stable_owner_key::enable_owner_key_strap(self.registers);
 
         // PQC Key Type.
+        cfi_assert_eq(pk_hash_idx, pk_hash_idx_expected);
         let pqc_type = otp
             .read_pqc_key_type(pk_hash_idx)
             .unwrap_or_else(|_| fatal_error(McuError::ROM_OTP_READ_ERROR));
@@ -273,6 +284,7 @@ impl Soc {
         // Vendor PK Hash.
         caliptra_mcu_romtime::print!("[mcu-fuse-write] Writing fuse key vendor PK hash: ");
         let mut hash_buf = [0u8; 48];
+        cfi_assert_eq(pk_hash_idx, pk_hash_idx_expected);
         otp.read_vendor_pk_hash(pk_hash_idx, &mut hash_buf)
             .unwrap_or_else(|_| fatal_error(McuError::ROM_OTP_READ_ERROR));
         for (i, word_bytes) in hash_buf.chunks_exact(4).enumerate() {
@@ -315,18 +327,21 @@ impl Soc {
         // TODO: vendor-specific fuses when those are supported
         // Load Owner ECC/LMS/MLDSA revocation CSRs.
         // ECC Revocation.
+        cfi_assert_eq(pk_hash_idx, pk_hash_idx_expected);
         let word = otp
             .read_vendor_ecc_revocation(pk_hash_idx)
             .unwrap_or_else(|_| fatal_error(McuError::ROM_OTP_READ_ERROR));
         self.registers.fuse_ecc_revocation.set(word);
 
         // LMS Revocation.
+        cfi_assert_eq(pk_hash_idx, pk_hash_idx_expected);
         let word = otp
             .read_vendor_lms_revocation(pk_hash_idx)
             .unwrap_or_else(|_| fatal_error(McuError::ROM_OTP_READ_ERROR));
         self.registers.fuse_lms_revocation.set(word);
 
         // MLDSA Revocation.
+        cfi_assert_eq(pk_hash_idx, pk_hash_idx_expected);
         let word = otp
             .read_vendor_mldsa_revocation(pk_hash_idx)
             .unwrap_or_else(|_| fatal_error(McuError::ROM_OTP_READ_ERROR));
@@ -649,6 +664,7 @@ impl Soc {
         self.registers.cptra_owner_pk_hash_lock.set(1);
     }
 
+    #[cfg_attr(all(not(test), feature = "cfi"), cfi_impl_fn)]
     pub fn fuse_write_done(&self) {
         self.registers.cptra_fuse_wr_done.set(1);
     }
@@ -799,6 +815,7 @@ pub fn verify_prod_debug_unlock_pk_hash(
 
 /// Verifies that the MCU mailbox AXI user configuration hasn't been tampered with
 /// after SS_CONFIG_DONE_STICKY is set.
+#[cfg_attr(all(not(test), feature = "cfi"), cfi_mod_fn)]
 pub fn verify_mcu_mbox_axi_users(
     mci: &caliptra_mcu_romtime::Mci,
     expected: &McuMboxAxiUserConfig,
@@ -973,12 +990,36 @@ pub struct RomParameters<'a> {
     /// ROM uses the reference fuse map count (number of entries in
     /// `PROD_DEBUG_UNLOCK_PK_ENTRIES`).
     pub prod_debug_unlock_auth_pk_hash_count: Option<u32>,
+    /// An optional entropy source used for the initialization of CFI counters before Caliptra
+    /// mailbox is available. If `None` and CFI is enabled, initialization will error out.
+    pub cfi_entropy_source: Option<&'a mut dyn CfiEntropySource>,
 }
 
-pub fn rom_start(params: RomParameters) {
+fn initialize_cfi_state(params: &mut RomParameters) {
+    match &mut params.cfi_entropy_source {
+        None => {
+            if cfg!(feature = "cfi") {
+                caliptra_mcu_romtime::println!(
+                    "[mcu-rom] CFI enabled but no early entropy source available"
+                );
+                fatal_error(McuError::ROM_CFI_NO_EARLY_ENTROPY_SOURCE);
+            }
+        }
+        Some(source) => {
+            let mut entropy_gen = || source.entropy();
+            CfiCounter::reset(&mut entropy_gen);
+            CfiCounter::reset(&mut entropy_gen);
+            CfiCounter::reset(&mut entropy_gen);
+        }
+    }
+}
+
+pub fn rom_start(mut params: RomParameters) {
     caliptra_mcu_romtime::println!("[mcu-rom] Hello from ROM");
     #[cfg(feature = "ocp-lock")]
     caliptra_mcu_romtime::println!("[mcu-rom] OCP LOCK feature enabled");
+
+    initialize_cfi_state(&mut params);
 
     // Create ROM environment with all peripherals
     let mut env = RomEnv::new();
