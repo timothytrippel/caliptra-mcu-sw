@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 mod auth_manifest;
 mod cargo_lock;
+mod ci;
 mod clippy;
 mod corim;
 mod coverage;
@@ -393,6 +394,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: BundleCommands,
     },
+    /// Run CI tools
+    CI {
+        #[command(subcommand)]
+        command: CICommands,
+    },
     /// Call Vertex AI Gemini API
     VertexPrompt {
         /// The prompt to send to the model
@@ -410,6 +416,12 @@ enum Commands {
         #[arg(long, default_value = "us-central1")]
         location: String,
     },
+}
+
+#[derive(Subcommand)]
+pub enum CICommands {
+    /// Run size-history tool.
+    SizeHistory,
 }
 
 #[derive(Subcommand)]
@@ -766,6 +778,9 @@ fn main() {
             }
         },
         Commands::FirmwareBundler { cmd } => caliptra_mcu_firmware_bundler::execute(cmd.clone()),
+        Commands::CI { command } => match command {
+            CICommands::SizeHistory => ci::size_history(),
+        },
         Commands::VertexPrompt {
             prompt,
             model,
